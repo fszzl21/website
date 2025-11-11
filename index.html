@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FAISAL ANWARI</title>
+    <link rel="shortcut icon" href="./favicon.ico" type="image/x-icon">
+</head>
+
+<style>
+body {top: 0; left: 0; width: 99%; height: 97%;
+    position: absolute; display: table}
+  p {display: table-cell; vertical-align: middle; text-align: center}
+#timezone * {text-decoration: none;}
+</style>
+
+
+<script type="text/javascript">
+    // declare time zone formatting
+    let options = {
+        timeZone: 'CET/Amsterdam',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+    },
+    formatter = new Intl.DateTimeFormat([], options);
+
+    // set time
+    setInterval(
+        () => {
+            document.querySelector("#time").innerText = formatter.format(new Date());
+        }
+    , 1000)
+</script>
+</head>
+
+
+
+<p>
+<font size="7"><i><b>Faisal Anwari</b></i></font> <br>
+<br>
+<img src="https://i.pinimg.com/736x/13/1b/51/131b51f15586edfd007c0e536dc6792c.jpg" style="width:400px;"><br>
+<br>
+<span id=timezone>
+<i>
+<a href="https://time.is/Amsterdam">Time in Amsterdam</a> - <span
+    id="time">00:00</span> <a href="https://time.is/nl/Amsterdam">CET</a>
+</i>
+</span>
+<br><br>
+
+<a href="http://irawnaf.com/about.html">about</a> //
+<a href="https://drive.google.com/file/d/17CnAyDkTUckt3jNoQjzsUmVlzP1jdp6t/view?usp=sharing">resume</a> //
+<a href="http://irawnaf.com/contact.html">contact</a>
+
+<br>
+<br>
+</body>
+</html>
