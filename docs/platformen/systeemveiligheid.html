@@ -1,0 +1,515 @@
+<h1 id="basis-systeem-veiligheid">Basis Systeem Veiligheid</h1>
+<hr>
+<h2 id="1-windows-bestandsrechten-ntfs-permissies-instellen-gui-">1. Windows bestandsrechten – NTFS permissies instellen (GUI)</h2>
+<ol>
+<li>Rechtsklik op een map → <strong>Properties → Security</strong></li>
+<li>Klik op <strong>Edit</strong> om rechten aan te passen</li>
+<li>Voeg een gebruiker of groep toe via <strong>Add</strong></li>
+<li>Stel de gewenste standaard permissie in:<ul>
+<li><strong>Full Control</strong> – alles inclusief rechten wijzigen</li>
+<li><strong>Modify</strong> – lezen, schrijven, verwijderen</li>
+<li><strong>Read &amp; Execute</strong> – lezen en uitvoeren</li>
+<li><strong>Read</strong> – alleen lezen</li>
+<li><strong>Write</strong> – alleen schrijven</li>
+</ul>
+</li>
+</ol>
+<p><strong>Tip:</strong> NTFS-rechten en share-rechten werken samen. De meest beperkende combinatie van beide wint. Stel NTFS-rechten zo gedetailleerd mogelijk in en houd share-rechten simpel (bijv. iedereen &quot;Read&quot;). Zo gelden de juiste rechten zowel lokaal als via het netwerk.</p>
+<hr>
+<h2 id="2-windows-bestandsrechten-share-aanmaken-gui-op-dc-of-server-met-gui-">2. Windows bestandsrechten – Share aanmaken (GUI op DC of server met GUI)</h2>
+<ol>
+<li>Rechtsklik op map → <strong>Properties → Sharing → Advanced Sharing</strong></li>
+<li>Vink aan: <strong>Share this folder</strong></li>
+<li>Geef de share een naam</li>
+<li>Klik op <strong>Permissions</strong> en stel de share-rechten in</li>
+<li>Klik <strong>OK</strong> om op te slaan</li>
+</ol>
+<p><strong>Tip:</strong> Deny heeft altijd voorrang op Allow, maar gebruik Deny zo min mogelijk. Het AGDLP-principe (Account → Global group → Domain Local group → Permissions) maakt rechtenbeheer overzichtelijk en schaalbaar: ken rechten toe aan Domain Local groepen, voeg Global groepen toe aan die Domain Local groepen, en zet gebruikers in de Global groepen.</p>
+<hr>
+<h2 id="3-windows-bestandsrechten-share-aanmaken-op-core-server-via-mmc">3. Windows bestandsrechten – Share aanmaken op Core server via MMC</h2>
+<ol>
+<li>Open op de grafische machine <strong>Win+R → mmc</strong></li>
+<li>Kies <strong>File → Add/Remove Snap-in → Shared Folders</strong></li>
+<li>Kies <strong>Another Computer</strong> en vul de naam van de Core server in</li>
+<li>Klik op <strong>Shares → rechtsklik → New Share</strong> en volg de wizard</li>
+<li>Sla de MMC op via <strong>File → Save</strong> voor hergebruik</li>
+</ol>
+<p>Firewall op Core server openzetten voor bestandsdeling:</p>
+<pre><code class="lang-cmd">netsh advfirewall firewall <span class="hljs-keyword">set</span> rule <span class="hljs-keyword">group</span>=<span class="hljs-string">"File and Printer Sharing"</span> <span class="hljs-keyword">new</span> <span class="hljs-keyword">enable</span>=Yes
+</code></pre>
+<p>Shares opvragen op Core server:</p>
+<pre><code class="lang-cmd"><span class="hljs-built_in">net</span> share
+</code></pre>
+<p><strong>Tip:</strong> De Shared Folders wizard in MMC stelt standaard alleen share-rechten in, niet NTFS-rechten. Stel NTFS-rechten achteraf apart in via de eigenschappen van de map in Windows Verkenner, of gebruik PowerShell met <code>Set-Acl</code>.</p>
+<hr>
+<h2 id="4-windows-share-aanmaken-en-rechten-instellen-via-powershell">4. Windows – Share aanmaken en rechten instellen via PowerShell</h2>
+<pre><code class="lang-powershell">New-<span class="hljs-keyword">Item</span> -Name (mapnaam) -ItemType <span class="hljs-keyword">Directory</span>
+New-SmbShare -Name <span class="hljs-string">"(sharenaam)"</span> -<span class="hljs-keyword">Path</span> <span class="hljs-string">"(pad)"</span> -FullAccess <span class="hljs-string">"Administrators"</span> -ReadAccess <span class="hljs-string">"(groep)"</span>
+<span class="hljs-keyword">Get</span>-SmbShare
+<span class="hljs-keyword">Get</span>-SmbShareAccess -Name <span class="hljs-string">"(sharenaam)"</span>
+</code></pre>
+<p>Firewall volledig uitzetten (alleen in oefenomgeving):</p>
+<pre><code class="lang-powershell"><span class="hljs-keyword">Set</span>-NetFirewallProfile -Profile <span class="hljs-keyword">Domain</span>,<span class="hljs-keyword">Public</span>,<span class="hljs-keyword">Private</span> -Enabled <span class="hljs-literal">false</span>
+</code></pre>
+<p><strong>Tip:</strong> <code>Get-SmbShare</code> toont alle actieve shares inclusief verborgen admin-shares zoals <code>C$</code> en <code>ADMIN$</code>. Met <code>Get-SmbShareAccess</code> zie je de share-rechten per share. Dit zijn andere rechten dan de NTFS-rechten op de onderliggende map.</p>
+<hr>
+<h2 id="5-linux-bestandsrechten-overzicht-notaties">5. Linux bestandsrechten – Overzicht notaties</h2>
+<h3 id="symbolisch">Symbolisch</h3>
+<pre><code>drwxrwx---<span class="hljs-number"> 2 </span>root sales<span class="hljs-number"> 4096 </span>jan<span class="hljs-number"> 1 </span>00:00 /data/sales
+</code></pre><table>
+<thead>
+<tr>
+<th>Positie</th>
+<th>Betekenis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>d</code></td>
+<td>directory (<code>-</code> = bestand, <code>l</code> = link)</td>
+</tr>
+<tr>
+<td><code>rwx</code></td>
+<td>rechten eigenaar (user)</td>
+</tr>
+<tr>
+<td><code>rwx</code></td>
+<td>rechten groep</td>
+</tr>
+<tr>
+<td><code>---</code></td>
+<td>rechten overigen (others)</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th>Recht</th>
+<th>Op bestand</th>
+<th>Op directory</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>r</code></td>
+<td>inhoud lezen</td>
+<td>bestandenlijst opvragen</td>
+</tr>
+<tr>
+<td><code>w</code></td>
+<td>inhoud wijzigen</td>
+<td>bestanden/submappen aanmaken</td>
+</tr>
+<tr>
+<td><code>x</code></td>
+<td>uitvoeren</td>
+<td>naar de map navigeren (cd)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="numeriek-octaal-">Numeriek (octaal)</h3>
+<table>
+<thead>
+<tr>
+<th>Getal</th>
+<th>Rechten</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>7</td>
+<td>rwx</td>
+</tr>
+<tr>
+<td>6</td>
+<td>rw-</td>
+</tr>
+<tr>
+<td>5</td>
+<td>r-x</td>
+</tr>
+<tr>
+<td>4</td>
+<td>r--</td>
+</tr>
+<tr>
+<td>0</td>
+<td>---</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="6-linux-bestandsrechten-eigenaar-en-groep-instellen">6. Linux bestandsrechten – Eigenaar en groep instellen</h2>
+<pre><code class="lang-bash"><span class="hljs-selector-tag">sudo</span> <span class="hljs-selector-tag">chown</span> (gebruiker) (bestand of map)
+<span class="hljs-selector-tag">sudo</span> <span class="hljs-selector-tag">chown</span> (gebruiker)<span class="hljs-selector-pseudo">:(groep)</span> (bestand of map)
+<span class="hljs-selector-tag">sudo</span> <span class="hljs-selector-tag">chown</span> <span class="hljs-selector-tag">-R</span> <span class="hljs-selector-tag">root</span><span class="hljs-selector-pseudo">:sales</span> /<span class="hljs-selector-tag">data</span>/<span class="hljs-selector-tag">sales</span>
+<span class="hljs-selector-tag">sudo</span> <span class="hljs-selector-tag">chgrp</span> (groep) (bestand of map)
+</code></pre>
+<p><strong>Tip:</strong> <code>chown -R</code> past eigenaar en groep recursief toe op een map en alle bestanden daarin. Vergeet dit niet als je een mappenstructuur inricht — anders hebben bestanden die al bestonden nog de oude eigenaar.</p>
+<hr>
+<h2 id="7-linux-bestandsrechten-permissies-instellen">7. Linux bestandsrechten – Permissies instellen</h2>
+<pre><code class="lang-bash">sudo <span class="hljs-keyword">chmod</span> <span class="hljs-number">755</span> (<span class="hljs-keyword">map</span>)
+sudo <span class="hljs-keyword">chmod</span> <span class="hljs-number">770</span> (<span class="hljs-keyword">map</span>)
+sudo <span class="hljs-keyword">chmod</span> <span class="hljs-number">600</span> (bestand)
+sudo <span class="hljs-keyword">chmod</span> -R <span class="hljs-number">755</span> /data
+sudo <span class="hljs-keyword">chmod</span> u+rw,g+rw,o-rwx (bestand)
+</code></pre>
+<h3 id="veelgebruikte-combinaties">Veelgebruikte combinaties</h3>
+<table>
+<thead>
+<tr>
+<th>Waarde</th>
+<th>Rechten</th>
+<th>Typisch gebruik</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>755</code></td>
+<td>rwxr-xr-x</td>
+<td>Publieke map of script</td>
+</tr>
+<tr>
+<td><code>770</code></td>
+<td>rwxrwx---</td>
+<td>Gedeelde map voor een groep</td>
+</tr>
+<tr>
+<td><code>700</code></td>
+<td>rwx------</td>
+<td>Prive map van een gebruiker</td>
+</tr>
+<tr>
+<td><code>644</code></td>
+<td>rw-r--r--</td>
+<td>Normaal bestand</td>
+</tr>
+<tr>
+<td><code>600</code></td>
+<td>rw-------</td>
+<td>Privesleutel of wachtwoordbestand</td>
+</tr>
+</tbody>
+</table>
+<pre><code class="lang-bash">ls -l (<span class="hljs-name">pad</span>)
+ls -la (<span class="hljs-name">pad</span>)
+</code></pre>
+<p><strong>Tip:</strong> Begin altijd met <code>ls -l</code> om de huidige rechten te zien voordat je <code>chmod</code> of <code>chown</code> uitvoert. Zo weet je wat je wijzigt en voorkom je het per ongeluk wegnemen van bestaande rechten.</p>
+<h3 id="relevante-paden">Relevante paden</h3>
+<table>
+<thead>
+<tr>
+<th>Pad</th>
+<th>Beschrijving</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/data/</code></td>
+<td>Voorbeeldhoofdmap uit de opdracht</td>
+</tr>
+<tr>
+<td><code>/data/sales/</code></td>
+<td>Map voor de salesgroep</td>
+</tr>
+<tr>
+<td><code>/data/to1-project/</code></td>
+<td>Map voor projectgroep to1</td>
+</tr>
+<tr>
+<td><code>/data/to2-project/</code></td>
+<td>Map voor projectgroep to2</td>
+</tr>
+<tr>
+<td><code>/gegevens/</code></td>
+<td>Tweede mapstructuur uit de opdracht</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="8-linux-gebruikers-en-groepen-aanmaken">8. Linux – Gebruikers en groepen aanmaken</h2>
+<pre><code class="lang-bash">sudo useradd (<span class="hljs-name">gebruikersnaam</span>)
+sudo passwd (<span class="hljs-name">gebruikersnaam</span>)
+sudo groupadd (<span class="hljs-name">groepsnaam</span>)
+sudo usermod -a -G (<span class="hljs-name">groep</span>) (<span class="hljs-name">gebruiker</span>)
+su - (<span class="hljs-name">gebruiker</span>)
+id (<span class="hljs-name">gebruiker</span>)
+</code></pre>
+<p><strong>Tip:</strong> De <code>-a</code> bij <code>usermod -a -G</code> staat voor &quot;append&quot;. Zonder <code>-a</code> worden alle bestaande groepslidmaatschappen overschreven en is de gebruiker alleen nog lid van de opgegeven groep. Dit is een veelgemaakte fout.</p>
+<hr>
+<h2 id="9-linux-bijzondere-rechten-setuid-setgid-en-sticky-bit">9. Linux – Bijzondere rechten: setuid, setgid en sticky bit</h2>
+<h3 id="setuid-uitvoeren-als-eigenaar-van-het-bestand">setuid – uitvoeren als eigenaar van het bestand</h3>
+<pre><code class="lang-bash">sudo chmod u+s (<span class="hljs-name">bestand</span>)
+sudo chmod <span class="hljs-number">4755</span> (<span class="hljs-name">bestand</span>)
+</code></pre>
+<p>Voorbeeld: <code>/usr/bin/sudo</code> draait altijd als root, ongeacht wie het aanroept.</p>
+<p>Bestanden met setuid en root als eigenaar zoeken:</p>
+<pre><code class="lang-bash">sudo find / -<span class="hljs-keyword">user</span> <span class="hljs-title">root</span> -perm -<span class="hljs-number">4000</span>
+</code></pre>
+<p><strong>Tip:</strong> Het setuid-bit op een bestand met root als eigenaar is een beveiligingsrisico als het in verkeerde handen valt. Zoek regelmatig naar dergelijke bestanden en verwijder onnodige exemplaren direct.</p>
+<h3 id="setgid-uitvoeren-als-groep-van-het-bestand-of-groepseigendom-in-map">setgid – uitvoeren als groep van het bestand, of groepseigendom in map</h3>
+<pre><code class="lang-bash">sudo chmod g+s (<span class="hljs-name">map</span>)
+sudo chmod <span class="hljs-number">2770</span> (<span class="hljs-name">map</span>)
+</code></pre>
+<p><strong>Tip:</strong> Setgid op een map zorgt dat nieuwe bestanden die erin worden aangemaakt de groep van de map erven in plaats van de primaire groep van de maker. Dit is handig voor gedeelde projectmappen waar meerdere gebruikers bestanden moeten kunnen lezen.</p>
+<h3 id="sticky-bit-alleen-eigenaar-mag-bestand-verwijderen">sticky bit – alleen eigenaar mag bestand verwijderen</h3>
+<pre><code class="lang-bash">sudo chmod +t (<span class="hljs-name">map</span>)
+sudo chmod <span class="hljs-number">1777</span> (<span class="hljs-name">map</span>)
+</code></pre>
+<p><strong>Tip:</strong> Het sticky bit wordt klassiek gebruikt op <code>/tmp</code>. Iedereen mag bestanden aanmaken in <code>/tmp</code>, maar niemand mag elkaars bestanden verwijderen. Gebruik dit op gedeelde schrijfbare mappen om te voorkomen dat gebruikers elkaars werk verwijderen.</p>
+<hr>
+<h2 id="10-linux-symbolic-link-aanmaken">10. Linux – Symbolic link aanmaken</h2>
+<pre><code class="lang-bash"><span class="hljs-keyword">ln</span> -s (doelbestand) (naam-van-link)
+<span class="hljs-keyword">ln</span> -s /data/topsecret.txt ~/secretpassage.txt
+<span class="hljs-keyword">ls</span> -<span class="hljs-keyword">la</span> (<span class="hljs-keyword">map</span>)
+</code></pre>
+<p><strong>Tip:</strong> Een symbolic link is een verwijzing naar een ander bestand. Rechten op de link zelf hebben geen betekenis — wat telt zijn de rechten op het doelbestand. Schrijven via de link wijzigt het originele bestand direct.</p>
+<hr>
+<h2 id="11-ssh-status-controleren-en-inloggen">11. SSH – Status controleren en inloggen</h2>
+<pre><code class="lang-bash">sudo systemctl status sshd
+ssh (gebruiker)@(host)
+ssh (gebruiker)@localhost
+<span class="hljs-keyword">exit</span>
+</code></pre>
+<p><strong>Tip:</strong> Test SSH-verbindingen altijd eerst vanuit een aparte terminal voordat je de lopende sessie sluit. Als de configuratie een fout bevat en de server herstart, kun je jezelf buitensluiten.</p>
+<hr>
+<h2 id="12-ssh-sshd_config-aanpassen">12. SSH – sshd_config aanpassen</h2>
+<pre><code class="lang-bash">sudo nano <span class="hljs-regexp">/etc/</span>ssh<span class="hljs-regexp">/sshd_config</span>
+</code></pre>
+<h3 id="belangrijke-instellingen-in-sshd_config">Belangrijke instellingen in sshd_config</h3>
+<table>
+<thead>
+<tr>
+<th>Instelling</th>
+<th>Waarde</th>
+<th>Betekenis</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Port</code></td>
+<td><code>22</code></td>
+<td>Standaard poort</td>
+</tr>
+<tr>
+<td><code>PermitRootLogin</code></td>
+<td><code>no</code></td>
+<td>Root-login uitschakelen</td>
+</tr>
+<tr>
+<td><code>PasswordAuthentication</code></td>
+<td><code>no</code></td>
+<td>Wachtwoordlogin uitzetten na instellen van sleutels</td>
+</tr>
+<tr>
+<td><code>MaxAuthTries</code></td>
+<td><code>6</code></td>
+<td>Max aantal inlogpogingen</td>
+</tr>
+</tbody>
+</table>
+<p>Na elke aanpassing de service herstarten:</p>
+<pre><code class="lang-bash"><span class="hljs-attribute">sudo systemctl restart sshd</span>
+</code></pre>
+<p><strong>Tip:</strong> Zet <code>PermitRootLogin no</code> in zodra je een normaal gebruikersaccount hebt dat kan inloggen. Root-login via SSH is een van de meest aangevallen configuraties. Stel dit in als een van de eerste beveiligingsmaatregelen op een nieuwe server.</p>
+<h3 id="relevante-bestanden-ssh-">Relevante bestanden (SSH)</h3>
+<table>
+<thead>
+<tr>
+<th>Pad</th>
+<th>Beschrijving</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/etc/ssh/sshd_config</code></td>
+<td>Configuratie van de SSH-server</td>
+</tr>
+<tr>
+<td><code>/etc/ssh/ssh_config</code></td>
+<td>Configuratie van de SSH-client (systeemwijd)</td>
+</tr>
+<tr>
+<td><code>~/.ssh/config</code></td>
+<td>Configuratie van de SSH-client (per gebruiker)</td>
+</tr>
+<tr>
+<td><code>~/.ssh/known_hosts</code></td>
+<td>Opgeslagen fingerprints van eerder verbonden servers</td>
+</tr>
+<tr>
+<td><code>~/.ssh/authorized_keys</code></td>
+<td>Publieke sleutels die mogen inloggen op dit account</td>
+</tr>
+<tr>
+<td><code>~/.ssh/id_ecdsa</code></td>
+<td>Private sleutel van de gebruiker</td>
+</tr>
+<tr>
+<td><code>~/.ssh/id_ecdsa.pub</code></td>
+<td>Publieke sleutel van de gebruiker</td>
+</tr>
+<tr>
+<td><code>/etc/issue</code></td>
+<td>Bericht dat wordt getoond voor het inloggen</td>
+</tr>
+<tr>
+<td><code>/etc/motd</code></td>
+<td>Bericht dat wordt getoond na het inloggen (Message of the Day)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="13-ssh-sleutelpaar-genereren-en-kopi-ren-public-key-authenticatie-">13. SSH – Sleutelpaar genereren en kopiëren (public key authenticatie)</h2>
+<h3 id="sleutelpaar-genereren-op-de-client-als-gewone-gebruiker-">Sleutelpaar genereren (op de client, als gewone gebruiker)</h3>
+<pre><code class="lang-bash"><span class="hljs-attribute">ssh-keygen -t ecdsa</span>
+</code></pre>
+<p>Accepteer de standaard locatie. Kies geen passphrase voor scriptgebruik.</p>
+<h3 id="publieke-sleutel-naar-de-server-kopi-ren">Publieke sleutel naar de server kopiëren</h3>
+<pre><code class="lang-bash">ssh-<span class="hljs-keyword">copy</span><span class="bash">-id (gebruiker)@(host)
+</span>ssh-<span class="hljs-keyword">copy</span><span class="bash">-id (gebruiker)@localhost</span>
+</code></pre>
+<h3 id="inloggen-met-sleutel-testen">Inloggen met sleutel testen</h3>
+<pre><code class="lang-bash"><span class="hljs-function"><span class="hljs-title">ssh</span> <span class="hljs-params">(gebruiker)</span>@<span class="hljs-params">(host)</span></span>
+</code></pre>
+<p>Als het goed is, wordt er geen wachtwoord gevraagd.</p>
+<h3 id="rechten-controleren-op-de-sleutelbestanden">Rechten controleren op de sleutelbestanden</h3>
+<pre><code class="lang-bash"><span class="hljs-keyword">ls</span> -<span class="hljs-keyword">al</span> ~/.ssh/
+</code></pre>
+<p>Vereiste rechten:</p>
+<table>
+<thead>
+<tr>
+<th>Bestand</th>
+<th>Rechten</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>~/.ssh/</code></td>
+<td><code>700</code> (drwx------)</td>
+</tr>
+<tr>
+<td><code>~/.ssh/id_ecdsa</code></td>
+<td><code>600</code> (-rw-------)</td>
+</tr>
+<tr>
+<td><code>~/.ssh/id_ecdsa.pub</code></td>
+<td><code>644</code> (-rw-r--r--)</td>
+</tr>
+<tr>
+<td><code>~/.ssh/authorized_keys</code></td>
+<td><code>600</code> (-rw-------)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Tip:</strong> OpenSSH weigert te werken als de rechten op de <code>.ssh</code>-map of sleutelbestanden te ruim zijn. Als key-authenticatie niet werkt terwijl de sleutels er wel staan, controleer dan als eerste de rechten met <code>ls -al ~/.ssh/</code>.</p>
+<hr>
+<h2 id="14-selinux-status-opvragen-en-modus-wisselen">14. SELinux – Status opvragen en modus wisselen</h2>
+<pre><code class="lang-bash">getenforce
+sestatus
+sudo setenforce <span class="hljs-number">0</span>
+sudo setenforce <span class="hljs-number">1</span>
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Modus</th>
+<th>Beschrijving</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Enforcing</code></td>
+<td>SELinux blokkeert overtredingen actief</td>
+</tr>
+<tr>
+<td><code>Permissive</code></td>
+<td>SELinux logt overtredingen maar blokkeert niet</td>
+</tr>
+<tr>
+<td><code>Disabled</code></td>
+<td>SELinux volledig uit (niet aanbevolen)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Tip:</strong> Gebruik <code>setenforce 0</code> (Permissive) tijdelijk om te testen of een probleem door SELinux wordt veroorzaakt. Als het probleem dan verdwijnt, weet je dat je een context of boolean moet aanpassen in plaats van SELinux permanent uit te zetten.</p>
+<hr>
+<h2 id="15-selinux-permanente-modus-instellen">15. SELinux – Permanente modus instellen</h2>
+<pre><code class="lang-bash">sudo nano /etc/selinux/<span class="hljs-built_in">config</span>
+</code></pre>
+<p>Pas de regel aan:</p>
+<pre><code><span class="hljs-attr">SELINUX</span>=enforcing
+</code></pre><p>of:</p>
+<pre><code><span class="hljs-attr">SELINUX</span>=permissive
+</code></pre><p>Actief na een reboot.</p>
+<p><strong>Tip:</strong> De instelling in <code>/etc/selinux/config</code> bepaalt de modus na een reboot. <code>setenforce</code> verandert de modus alleen tijdelijk voor de lopende sessie. Beide zijn nodig: <code>setenforce</code> voor onmiddellijke aanpassingen, de config voor permanente instellingen.</p>
+<h3 id="relevant-bestand">Relevant bestand</h3>
+<table>
+<thead>
+<tr>
+<th>Pad</th>
+<th>Beschrijving</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/etc/selinux/config</code></td>
+<td>Permanente SELinux-configuratie</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="16-selinux-contexts-bekijken-en-aanpassen">16. SELinux – Contexts bekijken en aanpassen</h2>
+<h3 id="context-van-bestanden-bekijken">Context van bestanden bekijken</h3>
+<pre><code class="lang-bash">ls -Z (<span class="hljs-name">pad</span>)
+ls -lZ (<span class="hljs-name">pad</span>)
+</code></pre>
+<h3 id="context-tijdelijk-aanpassen">Context tijdelijk aanpassen</h3>
+<pre><code class="lang-bash">sudo chcon -t (<span class="hljs-name">context_type</span>) (<span class="hljs-name">bestand</span> of map)
+sudo chcon -R -t httpd_sys_content_t /plf/www
+sudo chcon --reference=(<span class="hljs-name">referentiepad</span>) -R (<span class="hljs-name">doelpad</span>)
+</code></pre>
+<h3 id="context-permanent-vastleggen">Context permanent vastleggen</h3>
+<pre><code class="lang-bash">sudo semanage fcontext -a -t (<span class="hljs-name">context_type</span>) <span class="hljs-string">"(pad)(/.*)?"</span>
+sudo restorecon -R -v (<span class="hljs-name">pad</span>)
+</code></pre>
+<p><strong>Tip:</strong> <code>chcon</code> is tijdelijk — bij een SELinux-relabel gaat de instelling verloren. Gebruik altijd <code>semanage fcontext</code> gevolgd door <code>restorecon</code> voor een permanente oplossing. Dit is de juiste werkwijze bij een niet-standaard map voor een dienst zoals Apache of Samba.</p>
+<hr>
+<h2 id="17-selinux-fouten-analyseren-en-booleans-beheren">17. SELinux – Fouten analyseren en booleans beheren</h2>
+<h3 id="overtredingen-zoeken-in-logbestanden">Overtredingen zoeken in logbestanden</h3>
+<pre><code class="lang-bash">sudo ausearch -<span class="hljs-keyword">m</span> AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR -<span class="hljs-keyword">ts</span> today
+<span class="hljs-keyword">grep</span> <span class="hljs-string">"SELinux is preventing"</span> /var/<span class="hljs-built_in">log</span>/<span class="hljs-keyword">messages</span>
+sudo <span class="hljs-keyword">grep</span> http /var/<span class="hljs-built_in">log</span>/audit/audit.<span class="hljs-built_in">log</span> | audit2why
+</code></pre>
+<h3 id="booleans-bekijken-en-instellen">Booleans bekijken en instellen</h3>
+<pre><code class="lang-bash">sudo semanage <span class="hljs-built_in">boolean</span> -l
+sudo setsebool (boolean_naam) <span class="hljs-keyword">on</span>
+sudo setsebool -P (boolean_naam) <span class="hljs-keyword">on</span>
+</code></pre>
+<p><strong>Tip:</strong> De <code>-P</code> vlag bij <code>setsebool</code> maakt de wijziging permanent (Persistent). Zonder <code>-P</code> geldt de boolean alleen tot de volgende reboot.</p>
+<hr>
+<h2 id="18-selinux-gebruikers-en-contexten">18. SELinux – Gebruikers en contexten</h2>
+<h3 id="beschikbare-selinux-users-en-rollen-bekijken">Beschikbare SELinux users en rollen bekijken</h3>
+<pre><code class="lang-bash">sudo dnf <span class="hljs-keyword">install</span> setools-console
+seinfo -u
+seinfo -r
+</code></pre>
+<h3 id="context-van-de-huidige-gebruiker-bekijken">Context van de huidige gebruiker bekijken</h3>
+<pre><code class="lang-bash"><span class="hljs-built_in">id</span> -Z
+</code></pre>
+<h3 id="nieuwe-gebruiker-aanmaken-met-een-confined-selinux-label">Nieuwe gebruiker aanmaken met een confined SELinux label</h3>
+<pre><code class="lang-bash">sudo useradd -Z staff_u (<span class="hljs-name">gebruikersnaam</span>)
+sudo passwd (<span class="hljs-name">gebruikersnaam</span>)
+</code></pre>
+<p>Na een reboot en inloggen als die gebruiker:</p>
+<pre><code class="lang-bash"><span class="hljs-built_in">id</span> -Z
+</code></pre>
+<p>Verwachte output bevat: <code>staff_u:staff_r:staff_t</code></p>
+<h3 id="aangemelde-gebruikers-en-hun-selinux-labels-bekijken">Aangemelde gebruikers en hun SELinux labels bekijken</h3>
+<pre><code class="lang-bash">sudo semanage login <span class="hljs-_">-l</span>
+</code></pre>
+<p><strong>Tip:</strong> Een &quot;confined&quot; gebruiker zoals <code>staff_u</code> heeft beduidend minder rechten dan de standaard <code>unconfined_u</code>. Dit is het principe van &quot;least privilege&quot;: een gebruiker krijgt alleen de rechten die strikt noodzakelijk zijn. Dit beperkt de schade als een account wordt gecompromitteerd.</p>
+|
+<a href="../../notities.html">Terug naar notities.</a> |

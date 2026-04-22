@@ -1,0 +1,162 @@
+<h1 id="active-directory-user-management">Active Directory &amp; User Management</h1>
+<hr>
+<h2 id="belangrijke-mappen-locaties">Belangrijke mappen &amp; locaties</h2>
+<pre><code>C:<span class="hljs-symbol">\W</span>indows<span class="hljs-symbol">\S</span>ystem32<span class="hljs-symbol">\s</span>ysprep<span class="hljs-symbol">\ </span>  # Sysprep tool
+<span class="hljs-symbol">\\</span>(server)<span class="hljs-symbol">\H</span>omefolders<span class="hljs-symbol">\ </span>       # Centrale homefolders share
+<span class="hljs-symbol">\\</span>(server)<span class="hljs-symbol">\R</span>oaming<span class="hljs-symbol">\ </span>           # Roaming profielen share
+<span class="hljs-symbol">\\</span>(server)<span class="hljs-symbol">\M</span>andatory<span class="hljs-symbol">\ </span>         # Mandatory profielen share
+</code></pre><hr>
+<h2 id="domain-controller-promoveren">Domain Controller promoveren</h2>
+<p><strong>GUI:</strong></p>
+<ol>
+<li>Server Manager → Manage → Add Roles and Features</li>
+<li>Role-based installation → selecteer server</li>
+<li>Vink <strong>Active Directory Domain Services</strong> aan</li>
+<li>Na installatie: klik gele uitroepteken → &quot;Promote this server to a domain controller&quot;</li>
+<li>Nieuwe forest → domeinnaam invullen (bijv. <code>bedrijf.local</code>)</li>
+<li>DNS Server aangevinkt laten, DSRM-wachtwoord instellen → installeer</li>
+</ol>
+<blockquote>
+<p>Noteer het DSRM-wachtwoord op een veilige plek — je hebt het zelden nodig maar het is cruciaal bij herstel.</p>
+</blockquote>
+<p><strong>Tweede DC / subdomein toevoegen:</strong></p>
+<ul>
+<li>Zelfde stappen, maar kies <strong>Add a new domain to an existing forest</strong></li>
+<li>Zorg dat de tweede DC de eerste DC als primaire DNS gebruikt</li>
+<li>Test eerst: <code>ping (domeinnaam)</code></li>
+</ul>
+<hr>
+<h2 id="server-naam-vast-ip-instellen">Server naam &amp; vast IP instellen</h2>
+<p><strong>GUI:</strong></p>
+<ol>
+<li>Rechtermuisklik Start → System → Rename this PC</li>
+<li>Netwerk: Control Panel → Network → Ethernet → Properties → IPv4<ul>
+<li>Vul vast IP in, bijv. <code>192.168.1.10</code></li>
+<li>DNS: IP van de DC (of eigen IP als dit de DC zelf is)</li>
+</ul>
+</li>
+</ol>
+<blockquote>
+<p>Een DC heeft altijd een vast IP nodig — DHCP zorgt voor problemen bij AD en DNS.</p>
+</blockquote>
+<hr>
+<h2 id="windows-client-aan-domein-toevoegen">Windows client aan domein toevoegen</h2>
+<p><strong>GUI:</strong></p>
+<ol>
+<li>Start → System → Rename this PC (Advanced) → Change</li>
+<li>Member of: <strong>Domain</strong> → domeinnaam invullen</li>
+<li>Inloggen met domeinbeheerder → herstart</li>
+<li>Controleer daarna in ADUC onder <strong>Computers</strong></li>
+</ol>
+<hr>
+<h2 id="rsat-installeren-op-windows-10-11">RSAT installeren op Windows 10/11</h2>
+<p><strong>GUI:</strong></p>
+<ol>
+<li>Settings → Apps → Optional Features → Add a feature → zoek <code>RSAT</code></li>
+<li>Installeer minimaal:<ul>
+<li>AD Domain Services Tools</li>
+<li>DHCP Server Tools</li>
+<li>DNS Server Tools</li>
+<li>Group Policy Management Tools</li>
+<li>Server Manager</li>
+</ul>
+</li>
+</ol>
+<blockquote>
+<p>Met RSAT beheer je servers vanuit je eigen werkplek zonder in te loggen op de server zelf.</p>
+</blockquote>
+<hr>
+<h2 id="organizational-units-ou-aanmaken">Organizational Units (OU) aanmaken</h2>
+<p><strong>GUI (ADUC of ADAC):</strong></p>
+<ol>
+<li>Rechtermuisklik op domein of bovenliggende OU → New → Organizational Unit</li>
+<li>Laat &quot;Protect from accidental deletion&quot; aangevinkt</li>
+</ol>
+<p><strong>PowerShell:</strong></p>
+<pre><code class="lang-powershell"><span class="hljs-meta"># Directe OU onder domein</span>
+<span class="hljs-keyword">New</span>-ADOrganizationalUnit -Name <span class="hljs-string">"Medewerkers"</span> -Path <span class="hljs-string">"DC=bedrijf,DC=local"</span>
+
+<span class="hljs-meta"># OU binnen een andere OU</span>
+<span class="hljs-keyword">New</span>-ADOrganizationalUnit -Name <span class="hljs-string">"IT"</span> -Path <span class="hljs-string">"OU=Medewerkers,DC=bedrijf,DC=local"</span>
+</code></pre>
+<blockquote>
+<p>OU&#39;s gebruik je om gebruikers, computers en printers logisch te groeperen én om Group Policies gericht toe te passen.</p>
+</blockquote>
+<hr>
+<h2 id="gebruikers-aanmaken-beheren">Gebruikers aanmaken &amp; beheren</h2>
+<p><strong>GUI (ADUC):</strong></p>
+<ul>
+<li>Rechtermuisklik op OU → New → User</li>
+<li>Logon naam: <code>voornaam.achternaam</code></li>
+</ul>
+<p><strong>Template user kopiëren:</strong></p>
+<ul>
+<li>Rechtermuisklik op template user → Copy → nieuwe naam invullen</li>
+<li>Zet template altijd op <strong>Disabled</strong> als hij niet gebruikt wordt</li>
+<li>Disabled account herkenbaar aan pijltje (↓) op het icoon</li>
+</ul>
+<p><strong>PowerShell (bulk import via CSV):</strong></p>
+<pre><code class="lang-powershell"><span class="hljs-keyword">Import</span>-Csv <span class="hljs-string">"gebruikers.csv"</span> | <span class="hljs-keyword">New</span>-ADUser -Enabled $<span class="hljs-keyword">true</span> `
+  -AccountPassword (ConvertTo-SecureString <span class="hljs-string">"Wachtwoord1!"</span> -AsPlainText -Force)
+</code></pre>
+<p><strong>Gebruiker verplaatsen naar andere OU:</strong></p>
+<ul>
+<li>GUI: rechtermuisklik → Move → kies doel-OU</li>
+<li>PowerShell:<pre><code class="lang-powershell"><span class="hljs-keyword">Move-ADObject </span>-Identity <span class="hljs-string">"CN=Jan Jansen,OU=Oud,DC=bedrijf,DC=local"</span> `
+-TargetPath <span class="hljs-string">"OU=Nieuw,DC=bedrijf,DC=local"</span>
+</code></pre>
+</li>
+</ul>
+<hr>
+<h2 id="homefolders-profielen-instellen">Homefolders &amp; profielen instellen</h2>
+<p><strong>Shares aanmaken:</strong></p>
+<ol>
+<li>Maak mappen aan op de server</li>
+<li>Rechtermuisklik → Properties → Sharing → Advanced Sharing</li>
+<li>Geef <strong>Authenticated Users</strong> Full Control</li>
+</ol>
+<p><strong>Homefolder koppelen (ADUC):</strong></p>
+<ol>
+<li>Selecteer gebruiker(s) → Properties → tab <strong>Profile</strong></li>
+<li>Home folder → Connect → schijfletter kiezen</li>
+<li>Pad: <code>\\(server)\Homefolders\%username%</code></li>
+</ol>
+<p><strong>Roaming profiel instellen:</strong></p>
+<ul>
+<li>Profile path: <code>\\(server)\Roaming\%username%</code></li>
+</ul>
+<blockquote>
+<p><code>%username%</code> wordt automatisch vervangen door de inlognaam van elke gebruiker — zo krijgt iedereen automatisch een eigen map.</p>
+</blockquote>
+<hr>
+<h2 id="delegation-of-control">Delegation of Control</h2>
+<blockquote>
+<p>Gebruik dit om bijvoorbeeld een teamleider zelf wachtwoorden te laten resetten zonder volledige beheerdersrechten te geven.</p>
+</blockquote>
+<p><strong>GUI (ADUC):</strong></p>
+<ol>
+<li>Rechtermuisklik op OU → Delegate Control</li>
+<li>Voeg gebruiker of groep toe</li>
+<li>Kies taken (bijv. wachtwoorden resetten, gebruikers aanmaken)</li>
+</ol>
+<hr>
+<h2 id="handige-powershell-commando-s">Handige PowerShell commando&#39;s</h2>
+<pre><code class="lang-powershell"># Alle gebruikers <span class="hljs-built_in">in</span> een OU opvragen
+Get-ADUser -Filter * -SearchBase <span class="hljs-string">"OU=Medewerkers,DC=bedrijf,DC=local"</span>
+
+# Gebruiker opzoeken
+Get-ADUser -<span class="hljs-keyword">Identity</span> <span class="hljs-string">"jan.jansen"</span> -Properties *
+
+# Wachtwoord resetten
+<span class="hljs-keyword">Set</span>-ADAccountPassword -<span class="hljs-keyword">Identity</span> <span class="hljs-string">"jan.jansen"</span> -<span class="hljs-keyword">Reset</span> `
+  -NewPassword (ConvertTo-SecureString <span class="hljs-string">"NieuwWw1!"</span> -AsPlainText -Force)
+
+# Account <span class="hljs-built_in">in</span>-/uitschakelen
+Disable-ADAccount -<span class="hljs-keyword">Identity</span> <span class="hljs-string">"jan.jansen"</span>
+Enable-ADAccount  -<span class="hljs-keyword">Identity</span> <span class="hljs-string">"jan.jansen"</span>
+
+# Gebruiker aan groep toevoegen
+<span class="hljs-keyword">Add</span>-ADGroupMember -<span class="hljs-keyword">Identity</span> <span class="hljs-string">"IT-Beheer"</span> -Members <span class="hljs-string">"jan.jansen"</span>
+</code></pre>
+|
+<a href="../../notities.html">Terug naar notities.</a> |

@@ -1,0 +1,309 @@
+<h1 id="powershell-bash">Powershell &amp; Bash</h1>
+<hr>
+<h2 id="1-help-documentatie-opzoeken-linux-">1. Help &amp; documentatie opzoeken (Linux)</h2>
+<pre><code class="lang-bash">(<span class="hljs-name">commando</span>) --help
+man (<span class="hljs-name">commando</span>)
+man -k (<span class="hljs-name">trefwoord</span>)
+sudo mandb
+</code></pre>
+<p>Navigeren in een manpage: spatie of <code>f</code> = volgende pagina, <code>b</code> = vorige pagina, <code>q</code> = afsluiten.</p>
+<p><strong>Tip:</strong> Gebruik <code>man -k</code> om een commando te vinden als je de exacte naam niet weet. Gebruik <code>sudo mandb</code> eenmalig na een nieuwe installatie om de manpage-database aan te vullen — anders geeft <code>man -k</code> geen resultaten.</p>
+<hr>
+<h2 id="2-navigeren-door-het-bestandssysteem-linux-">2. Navigeren door het bestandssysteem (Linux)</h2>
+<pre><code class="lang-bash"><span class="hljs-keyword">pwd</span>
+<span class="hljs-keyword">cd</span> (<span class="hljs-keyword">map</span>)
+<span class="hljs-keyword">cd</span> ~
+<span class="hljs-keyword">cd</span> ..
+<span class="hljs-keyword">cd</span> /
+<span class="hljs-keyword">cd</span> /etc
+<span class="hljs-keyword">ls</span>
+<span class="hljs-keyword">ls</span> -r (<span class="hljs-keyword">map</span>)
+</code></pre>
+<p><strong>Tip:</strong> <code>pwd</code> vertelt je altijd waar je staat. Als je verdwaald raakt in een diepe mapstructuur is <code>cd ~</code> de snelste weg terug naar je home directory.</p>
+<h3 id="relevante-paden">Relevante paden</h3>
+<table>
+<thead>
+<tr>
+<th>Pad</th>
+<th>Beschrijving</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/</code></td>
+<td>Root van het bestandssysteem</td>
+</tr>
+<tr>
+<td><code>/home/(gebruiker)/</code></td>
+<td>Home directory van een gebruiker</td>
+</tr>
+<tr>
+<td><code>~</code></td>
+<td>Snelkoppeling naar eigen home directory</td>
+</tr>
+<tr>
+<td><code>/etc/</code></td>
+<td>Configuratiebestanden van het systeem</td>
+</tr>
+<tr>
+<td><code>/usr/share/doc/</code></td>
+<td>Documentatie van geinstalleerde pakketten</td>
+</tr>
+<tr>
+<td><code>/var/log/</code></td>
+<td>Logbestanden van het systeem</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="3-bestandsbeheer-linux-">3. Bestandsbeheer (Linux)</h2>
+<pre><code class="lang-bash">touch (<span class="hljs-name">bestand</span>)
+mkdir (<span class="hljs-name">map</span>)
+mkdir -p (<span class="hljs-name">pad/naar/map</span>)
+cp (<span class="hljs-name">bron</span>) (<span class="hljs-name">doel</span>)
+cp -r (<span class="hljs-name">bronmap</span>) (<span class="hljs-name">doelmap</span>)
+cp -v (<span class="hljs-name">bron</span>) (<span class="hljs-name">doel</span>)
+mv (<span class="hljs-name">bron</span>) (<span class="hljs-name">doel</span>)
+rm (<span class="hljs-name">bestand</span>)
+rm -r (<span class="hljs-name">map</span>)
+rm -rf (<span class="hljs-name">map</span>)
+rmdir (<span class="hljs-name">lege</span> map)
+</code></pre>
+<p><strong>Tip:</strong> <code>cp -r</code> kopieert mappen inclusief alle bestanden en submappen (recursief). Zonder <code>-r</code> werkt <code>cp</code> alleen op losse bestanden. Gebruik <code>rm -rf</code> met uiterste voorzichtigheid — er is geen prullenbak op de command line.</p>
+<hr>
+<h2 id="4-output-redirection-linux-">4. Output redirection (Linux)</h2>
+<pre><code class="lang-bash"><span class="hljs-comment">(commando)</span> &gt; <span class="hljs-comment">(bestand)</span>
+<span class="hljs-comment">(commando)</span> <span class="hljs-number">2</span>&gt; <span class="hljs-comment">(foutbestand)</span>
+<span class="hljs-comment">(commando)</span> &gt; <span class="hljs-comment">(uitvoer)</span> <span class="hljs-number">2</span>&gt; <span class="hljs-comment">(fouten)</span>
+<span class="hljs-comment">(commando)</span> &gt;&amp; <span class="hljs-comment">(bestand)</span>
+<span class="hljs-comment">(commando)</span> &lt; <span class="hljs-comment">(invoerbestand)</span>
+<span class="hljs-comment">(commando1)</span> | <span class="hljs-comment">(commando2)</span>
+</code></pre>
+<h3 id="voorbeelden">Voorbeelden</h3>
+<pre><code class="lang-bash"><span class="hljs-keyword">ls</span> /etc &gt; ~/etc.lst
+<span class="hljs-keyword">cp</span> -r /etc ~/backup <span class="hljs-number">2</span>&gt; ~/backuperrors.<span class="hljs-built_in">log</span>
+<span class="hljs-keyword">cp</span> -<span class="hljs-keyword">rv</span> /etc ~/backup &gt; ~/backup.lst <span class="hljs-number">2</span>&gt; ~/backuperrors.<span class="hljs-built_in">log</span>
+<span class="hljs-keyword">cat</span> ~/backuperrors.<span class="hljs-built_in">log</span> | more
+</code></pre>
+<p><strong>Tip:</strong> Kanaal <code>1</code> is standaard uitvoer (wat goed gaat), kanaal <code>2</code> is foutuitvoer (wat mis gaat). Door ze apart om te leiden kun je foutmeldingen in een eigen logbestand opslaan zonder dat ze de normale uitvoer vervuilen.</p>
+<hr>
+<h2 id="5-bestanden-weergeven-en-doorzoeken-linux-">5. Bestanden weergeven en doorzoeken (Linux)</h2>
+<pre><code class="lang-bash">cat (<span class="hljs-name">bestand</span>)
+more (<span class="hljs-name">bestand</span>)
+less (<span class="hljs-name">bestand</span>)
+grep (<span class="hljs-name">zoekterm</span>) (<span class="hljs-name">bestand</span>)
+grep -i (<span class="hljs-name">zoekterm</span>) (<span class="hljs-name">bestand</span>)
+find (<span class="hljs-name">startmap</span>) -name <span class="hljs-string">"(bestandsnaam)"</span>
+find (<span class="hljs-name">startmap</span>) -name <span class="hljs-string">"*(patroon)*"</span>
+wc -l (<span class="hljs-name">bestand</span>)
+</code></pre>
+<h3 id="voorbeelden">Voorbeelden</h3>
+<pre><code class="lang-bash"><span class="hljs-keyword">cat</span> /etc/hosts
+<span class="hljs-keyword">cat</span> /etc/hosts -n
+<span class="hljs-keyword">grep</span> started /var/<span class="hljs-built_in">log</span>/<span class="hljs-keyword">messages</span>
+<span class="hljs-keyword">grep</span> -i error /var/<span class="hljs-built_in">log</span>/<span class="hljs-keyword">messages</span>
+<span class="hljs-keyword">find</span> /usr/share/doc -name <span class="hljs-string">"*linux*"</span>
+<span class="hljs-keyword">find</span> /usr/share/doc -name <span class="hljs-string">"README*"</span> | wc -<span class="hljs-keyword">l</span>
+</code></pre>
+<p><strong>Tip:</strong> Linux is hoofdlettergevoelig. <code>grep error</code> vindt &quot;error&quot; maar niet &quot;Error&quot;. Gebruik <code>grep -i</code> voor hoofdletterongevoelig zoeken. Met <code>| wc -l</code> tel je het aantal resultaten in plaats van ze allemaal te tonen.</p>
+<hr>
+<h2 id="6-omgevingsvariabelen-linux-">6. Omgevingsvariabelen (Linux)</h2>
+<pre><code class="lang-bash"><span class="hljs-built_in">echo</span> <span class="hljs-variable">$USER</span>
+<span class="hljs-built_in">echo</span> <span class="hljs-variable">$HOSTNAME</span>
+<span class="hljs-built_in">echo</span> <span class="hljs-variable">$HOME</span>
+<span class="hljs-built_in">echo</span> <span class="hljs-variable">$PATH</span>
+<span class="hljs-built_in">set</span>
+(VARIABELENAAM)=(waarde)
+<span class="hljs-built_in">export</span> (VARIABELENAAM)
+</code></pre>
+<h3 id="voorbeeld-variabele-aanmaken-en-gebruiken">Voorbeeld: variabele aanmaken en gebruiken</h3>
+<pre><code class="lang-bash">BACKUPDIR=~/backup
+LOGBESTAND=~/<span class="hljs-keyword">error</span>.<span class="hljs-keyword">log</span>
+cp -r /etc $BACKUPDIR <span class="hljs-number">2</span>&gt; $LOGBESTAND
+</code></pre>
+<p><strong>Tip:</strong> Variabelen die je aanmaakt zijn alleen beschikbaar in de huidige shell-sessie. Met <code>export</code> maak je ze beschikbaar voor alle processen die vanuit die sessie worden gestart (kindprocessen). Zonder <code>export</code> ziet een script de variabele niet.</p>
+<h3 id="relevante-configuratiebestanden-voor-shell-opstartscripts">Relevante configuratiebestanden voor shell-opstartscripts</h3>
+<table>
+<thead>
+<tr>
+<th>Bestand</th>
+<th>Wanneer geladen</th>
+<th>Voor wie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/etc/profile</code></td>
+<td>Login shell</td>
+<td>Alle gebruikers, alle shells</td>
+</tr>
+<tr>
+<td><code>~/.bash_profile</code></td>
+<td>Login shell</td>
+<td>Specifieke gebruiker, alleen bash</td>
+</tr>
+<tr>
+<td><code>~/.profile</code></td>
+<td>Login shell</td>
+<td>Specifieke gebruiker, alle shells</td>
+</tr>
+<tr>
+<td><code>/etc/bashrc</code></td>
+<td>Non-login shell</td>
+<td>Alle gebruikers, alleen interactieve bash</td>
+</tr>
+<tr>
+<td><code>~/.bashrc</code></td>
+<td>Non-login shell</td>
+<td>Specifieke gebruiker, alleen interactieve bash</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="7-procesbeheer-linux-">7. Procesbeheer (Linux)</h2>
+<pre><code class="lang-bash">ps aux
+top
+pgrep (<span class="hljs-name">procesnaam</span>)
+kill (<span class="hljs-name">PID</span>)
+</code></pre>
+<p><strong>Tip:</strong> <code>ps aux</code> geeft een momentopname van alle draaiende processen. <code>top</code> toont processen live en ververst automatisch. Verlaat <code>top</code> met <code>q</code>. Het PID (Process ID) heb je nodig om een proces te stoppen met <code>kill</code>.</p>
+<hr>
+<h2 id="8-shell-scripting-opstartscripts-aanpassen">8. Shell scripting – Opstartscripts aanpassen</h2>
+<h3 id="welkom-melding-alleen-voor-root-login-shell-">Welkom-melding alleen voor root (login shell)</h3>
+<p>Voeg toe aan <code>/root/.bash_profile</code>:</p>
+<pre><code class="lang-bash">sudo nano <span class="hljs-regexp">/root/</span>.bash_profile
+</code></pre>
+<pre><code class="lang-bash"><span class="hljs-built_in">echo</span> <span class="hljs-string">"Welkom, super(wo)man!"</span>
+</code></pre>
+<p><strong>Tip:</strong> <code>/root/.bash_profile</code> wordt alleen geladen bij het inloggen als root via een login shell (SSH, console). Dit bestand bestaat mogelijk nog niet — nano maakt het automatisch aan.</p>
+<h3 id="inhoud-van-etc-redhat-release-tonen-voor-root-alle-shells-">Inhoud van /etc/redhat-release tonen voor root (alle shells)</h3>
+<p>Voeg toe aan <code>/root/.bashrc</code>:</p>
+<pre><code class="lang-bash">sudo nano <span class="hljs-regexp">/root/</span>.bashrc
+</code></pre>
+<pre><code class="lang-bash">cat /etc/redhat-<span class="hljs-built_in">release</span>
+</code></pre>
+<h3 id="path-uitbreiden-voor-alle-gebruikers">PATH uitbreiden voor alle gebruikers</h3>
+<p>Voeg toe aan <code>/etc/profile</code>:</p>
+<pre><code class="lang-bash">sudo nano <span class="hljs-regexp">/etc/</span>profile
+</code></pre>
+<pre><code class="lang-bash">export PATH=<span class="hljs-variable">$PATH</span><span class="hljs-symbol">:/opt/microsoft/powershell/</span><span class="hljs-number">7</span>
+</code></pre>
+<p><strong>Tip:</strong> <code>/etc/profile</code> wordt geladen voor alle gebruikers bij een login shell. Door het bestaande <code>$PATH</code> te behouden met <code>$PATH:</code> voeg je het nieuwe pad toe in plaats van de hele variabele te overschrijven.</p>
+<h3 id="todo-txt-check-voor-gewone-gebruikers-niet-root-alle-shells-">todo.txt check voor gewone gebruikers (niet root, alle shells)</h3>
+<p>Voeg toe aan <code>/etc/bashrc</code>:</p>
+<pre><code class="lang-bash">sudo nano <span class="hljs-regexp">/etc/</span>bashrc
+</code></pre>
+<pre><code class="lang-bash"><span class="hljs-keyword">if</span> [ <span class="hljs-string">"<span class="hljs-variable">$USER</span>"</span> != <span class="hljs-string">"root"</span> ]; <span class="hljs-keyword">then</span>
+    <span class="hljs-keyword">if</span> [ <span class="hljs-_">-f</span> ~/todo.txt ]; <span class="hljs-keyword">then</span>
+        cat ~/todo.txt
+    <span class="hljs-keyword">else</span>
+        <span class="hljs-built_in">echo</span> <span class="hljs-string">"Je hebt nog geen todo.txt! Maak deze z.s.m. aan."</span>
+    <span class="hljs-keyword">fi</span>
+<span class="hljs-keyword">fi</span>
+</code></pre>
+<p><strong>Tip:</strong> <code>/etc/bashrc</code> wordt geladen bij elke interactieve shell (ook non-login). De <code>if [ -f ... ]</code> constructie controleert of een bestand bestaat. De <code>$USER != &quot;root&quot;</code> check zorgt dat root deze melding niet ziet.</p>
+<hr>
+<h2 id="9-windows-server-core-basisconfiguratie">9. Windows Server Core – Basisconfiguratie</h2>
+<h3 id="sconfig-starten">sconfig starten</h3>
+<pre><code><span class="hljs-attribute">sconfig</span>
+</code></pre><p>Relevante opties in sconfig:</p>
+<table>
+<thead>
+<tr>
+<th>Optie</th>
+<th>Functie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2</td>
+<td>Computernaam wijzigen</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Domeinlidmaatschap instellen</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Netwerkinstellingen</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Remote management</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Tip:</strong> sconfig is een tekst-menu dat vrijwel alles regelt voor de initiele configuratie van een Core server. Gebruik het als startpunt voordat je naar PowerShell of netsh gaat.</p>
+<h3 id="netwerk-instellen-via-netsh">Netwerk instellen via netsh</h3>
+<pre><code class="lang-cmd">netsh interface ipv4 <span class="hljs-keyword">show</span> <span class="hljs-keyword">interface</span>
+netsh <span class="hljs-keyword">interface</span> ipv4 <span class="hljs-keyword">set</span> address <span class="hljs-keyword">name</span>=(<span class="hljs-keyword">id</span>) <span class="hljs-keyword">source</span>=<span class="hljs-keyword">static</span> address=(IP) <span class="hljs-keyword">mask</span>=(subnetmask) gateway=(gateway-IP)
+netsh <span class="hljs-keyword">interface</span> ipv4 <span class="hljs-keyword">add</span> dnsserver <span class="hljs-keyword">name</span>=(<span class="hljs-keyword">id</span>) address=(DNS-IP) <span class="hljs-keyword">index</span>=<span class="hljs-number">1</span>
+</code></pre>
+<p><strong>Tip:</strong> Zoek eerst het interface-ID op met <code>show interface</code> voordat je de overige netsh-commando&#39;s uitvoert. Het ID is een getal of een naam zoals &quot;Ethernet&quot;.</p>
+<hr>
+<h2 id="10-windows-server-core-computernaam-domein-powershell-">10. Windows Server Core – Computernaam &amp; Domein (PowerShell)</h2>
+<h3 id="naar-powershell-switchen-vanuit-cmd">Naar PowerShell switchen vanuit cmd</h3>
+<pre><code class="lang-cmd"><span class="hljs-attribute">powershell</span>
+</code></pre>
+<h3 id="computernaam-wijzigen-en-herstarten">Computernaam wijzigen en herstarten</h3>
+<pre><code class="lang-powershell">Rename-Computer (<span class="hljs-name">naam</span>)
+Restart-Computer
+</code></pre>
+<h3 id="domein-toevoegen">Domein toevoegen</h3>
+<pre><code class="lang-powershell">Add-Computer -DomainName (<span class="hljs-name">domeinnaam</span>) -Credential (<span class="hljs-name">domein</span>\gebruiker)
+Restart-Computer
+</code></pre>
+<p><strong>Tip:</strong> Na het toevoegen aan het domein moet je herstarten voor de wijziging actief wordt. Log daarna in met <code>(gebruiker)@(domeinnaam)</code> om expliciet het domeinaccount te gebruiken in plaats van het lokale account.</p>
+<h3 id="ps-remoting-inschakelen">PS Remoting inschakelen</h3>
+<pre><code class="lang-powershell"><span class="hljs-attribute">Enable-PSRemoting</span>
+</code></pre>
+<p><strong>Tip:</strong> PS Remoting is nodig als je de Core server op afstand wilt beheren via PowerShell vanaf een andere machine. Zonder dit werkt <code>Enter-PSSession</code> niet.</p>
+<hr>
+<h2 id="11-windows-server-core-firewall-remote-beheer">11. Windows Server Core – Firewall &amp; Remote beheer</h2>
+<h3 id="remote-beheer-via-netsh-inschakelen">Remote beheer via netsh inschakelen</h3>
+<pre><code class="lang-cmd">netsh advfirewall firewall <span class="hljs-keyword">set</span> rule <span class="hljs-keyword">group</span>=<span class="hljs-string">"windows remote management"</span> <span class="hljs-keyword">new</span> <span class="hljs-keyword">enable</span>=yes
+netsh advfirewall <span class="hljs-keyword">set</span> currentprofile <span class="hljs-keyword">settings</span> remotemanagement <span class="hljs-keyword">enable</span>
+</code></pre>
+<h3 id="firewall-volledig-aan-of-uit">Firewall volledig aan of uit</h3>
+<pre><code class="lang-cmd">netsh advfirewall <span class="hljs-built_in">set</span> allprofiles <span class="hljs-keyword">state</span> <span class="hljs-keyword">on</span>
+netsh advfirewall <span class="hljs-built_in">set</span> allprofiles <span class="hljs-keyword">state</span> off
+</code></pre>
+<h3 id="remote-desktop-inschakelen-via-sconfig">Remote Desktop inschakelen via sconfig</h3>
+<p>Kies in sconfig optie <strong>4</strong> (Remote Management) en optie <strong>7</strong> (Remote Desktop).</p>
+<p><strong>Tip:</strong> De firewall op een Core server blokkeert standaard remote beheer. Zet je de firewall tijdelijk uit voor de initiële configuratie, zet hem daarna altijd terug aan en configureer alleen de specifieke regels die je nodig hebt.</p>
+<h3 id="verbinding-maken-met-core-server-via-powershell-vanaf-een-andere-machine-">Verbinding maken met Core server via PowerShell (vanaf een andere machine)</h3>
+<pre><code class="lang-powershell">Enter-PSSession -ComputerName (<span class="hljs-name">servernaam</span>)
+</code></pre>
+<hr>
+<h2 id="12-windows-server-core-rollen-installeren-powershell-">12. Windows Server Core – Rollen installeren (PowerShell)</h2>
+<h3 id="beschikbare-rollen-bekijken">Beschikbare rollen bekijken</h3>
+<pre><code class="lang-powershell"><span class="hljs-attribute">Get-WindowsFeature</span>
+</code></pre>
+<h3 id="active-directory-domain-services-installeren">Active Directory Domain Services installeren</h3>
+<pre><code class="lang-powershell"><span class="hljs-keyword">Install</span>-WindowsFeature AD-<span class="hljs-keyword">Domain</span>-Services -IncludeManagementTools
+</code></pre>
+<h3 id="promoveren-tot-dc-in-bestaand-domein">Promoveren tot DC in bestaand domein</h3>
+<pre><code class="lang-powershell"><span class="hljs-symbol">Install</span>-<span class="hljs-keyword">ADDSDomainController </span>-DomainName <span class="hljs-string">"(domeinnaam)"</span> -Credential $(<span class="hljs-meta">Get</span>-Credential)
+</code></pre>
+<h3 id="dns-rol-installeren">DNS-rol installeren</h3>
+<pre><code class="lang-powershell"><span class="hljs-keyword">Install</span>-WindowsFeature DNS -IncludeManagementTools
+</code></pre>
+<p><strong>Tip:</strong> Voeg altijd <code>-IncludeManagementTools</code> toe aan <code>Install-WindowsFeature</code>. Zonder deze vlag installeer je de rol maar niet de bijbehorende beheerhulpmiddelen, waardoor je de rol niet lokaal kunt beheren.</p>
+<hr>
+<h2 id="13-windows-server-core-bestandsdeling-via-cmd">13. Windows Server Core – Bestandsdeling via cmd</h2>
+<pre><code class="lang-cmd"><span class="hljs-selector-tag">net</span> <span class="hljs-selector-tag">view</span> \\(servernaam)
+<span class="hljs-selector-tag">net</span> <span class="hljs-selector-tag">use</span> (stationsletter): \\(servernaam)\(sharenaam)
+</code></pre>
+<p><strong>Tip:</strong> Met <code>net use</code> koppel je een netwerk-share aan een stationsletter (bijv. <code>D:</code>). Dit is het command-line equivalent van &quot;Map network drive&quot; in Windows Verkenner.</p>
+<hr>
+<h2 id="14-mmc-met-snap-ins-instellen-op-client-of-dc-remote-beheer-">14. MMC met snap-ins instellen (op client of DC, remote beheer)</h2>
+<ol>
+<li>Start via <strong>Win+R</strong>: typ <code>mmc</code></li>
+<li>Kies <strong>File → Add/Remove Snap-in</strong></li>
+<li>Voeg toe: <strong>Active Directory Users and Computers</strong>, <strong>Computer Management</strong>, of <strong>DNS</strong></li>
+<li>Kies bij elk snap-in voor een andere computer en vul de servernaam in</li>
+</ol>
+<p><strong>Tip:</strong> Via MMC met snap-ins beheer je een Core server alsof je er grafisch op zit, maar dan vanaf een machine met GUI. Installeer hiervoor RSAT (Remote Server Administration Tools) op de Windows 10 client.</p>
+
+|
+<a href="../../notities.html">Terug naar notities.</a> |

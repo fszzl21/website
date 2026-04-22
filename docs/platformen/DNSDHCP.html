@@ -1,0 +1,295 @@
+<h1 id="dns-dhcp-linux-en-windows">DNS, DHCP Linux en Windows</h1>
+<hr>
+<h2 id="1-linux-dhcp-server-installeren">1. Linux DHCP server installeren</h2>
+<pre><code class="lang-bash">sudo dnf <span class="hljs-keyword">install</span> dhcp-<span class="hljs-keyword">server</span>
+</code></pre>
+<p><strong>Tip:</strong> Na installatie vind je een uitgebreid voorbeeldbestand op <code>less /usr/share/doc/dhcp*/dhcpd.conf.example</code>. Dit is handig als startpunt of ter referentie voor de syntax.</p>
+<hr>
+<h2 id="2-linux-dhcp-server-configureren">2. Linux DHCP server configureren</h2>
+<pre><code class="lang-bash">sudo nano <span class="hljs-regexp">/etc/</span>dhcp<span class="hljs-regexp">/dhcpd.conf</span>
+</code></pre>
+<p>Minimale configuratie:</p>
+<pre><code>option domain-name <span class="hljs-string">"(domeinnaam)"</span><span class="hljs-comment">;</span>
+option domain-name-servers (DNS-servernaam of IP)<span class="hljs-comment">;</span>
+
+default-lease-time <span class="hljs-number">600</span><span class="hljs-comment">;</span>
+max-lease-time <span class="hljs-number">7200</span><span class="hljs-comment">;</span>
+
+<span class="hljs-keyword">subnet </span>(netwerkadres) netmask (<span class="hljs-keyword">subnetmask) </span>{
+    range (start-IP) (<span class="hljs-keyword">eind-IP);
+</span>    option routers (gateway-IP)<span class="hljs-comment">;</span>
+    option <span class="hljs-keyword">broadcast-address </span>(<span class="hljs-keyword">broadcast-IP);
+</span>}
+
+<span class="hljs-comment"># Voorkomt waarschuwingen in de logs voor interfaces zonder scope:</span>
+<span class="hljs-keyword">subnet </span>(<span class="hljs-keyword">ander-subnet) </span>netmask (<span class="hljs-keyword">subnetmask) </span>{
+}
+</code></pre><p><strong>Voorbeeld voor bmc.example:</strong></p>
+<pre><code>option domain-name <span class="hljs-string">"bmc.example"</span>;
+option domain-name-servers rocky1.bmc.example;
+
+<span class="hljs-section">default</span>-lease-time <span class="hljs-number">600</span>;
+max-lease-time <span class="hljs-number">7200</span>;
+
+subnet <span class="hljs-number">192.168</span><span class="hljs-number">.15</span><span class="hljs-number">.0</span> netmask <span class="hljs-number">255.255</span><span class="hljs-number">.255</span><span class="hljs-number">.0</span> {
+    range <span class="hljs-number">192.168</span><span class="hljs-number">.15</span><span class="hljs-number">.100</span> <span class="hljs-number">192.168</span><span class="hljs-number">.15</span><span class="hljs-number">.150</span>;
+    option routers <span class="hljs-number">192.168</span><span class="hljs-number">.15</span><span class="hljs-number">.254</span>;
+    option broadcast-address <span class="hljs-number">192.168</span><span class="hljs-number">.15</span><span class="hljs-number">.255</span>;
+}
+</code></pre><p><strong>Tip:</strong> Elke <code>option</code>- en <code>range</code>-regel moet eindigen met een puntkomma (<code>;</code>). Dit is de meest voorkomende reden waarom <code>dhcpd</code> niet start.</p>
+<h3 id="relevante-bestanden-en-mappen-dhcp-linux-">Relevante bestanden en mappen (DHCP Linux)</h3>
+<table>
+<thead>
+<tr>
+<th>Pad</th>
+<th>Beschrijving</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/etc/dhcp/dhcpd.conf</code></td>
+<td>Configuratiebestand van de DHCP-server</td>
+</tr>
+<tr>
+<td><code>/usr/share/doc/dhcp*/dhcpd.conf.example</code></td>
+<td>Voorbeeldconfiguratiebestand</td>
+</tr>
+<tr>
+<td><code>/var/lib/dhcpd/dhcpd.leases</code></td>
+<td>Database van uitgegeven IP-adressen</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="3-linux-dhcp-server-configuratie-controleren-starten-en-firewall">3. Linux DHCP server configuratie controleren, starten en firewall</h2>
+<pre><code class="lang-bash">dhcpd -cf /etc/dhcp/dhcpd.conf
+sudo firewall-<span class="hljs-keyword">cmd</span><span class="bash"> --add-service=dhcp
+</span>sudo firewall-<span class="hljs-keyword">cmd</span><span class="bash"> --runtime-to-permanent
+</span>sudo systemctl enable --now dhcpd
+</code></pre>
+<p><strong>Tip:</strong> <code>dhcpd -cf</code> controleert de syntaxis van het configuratiebestand zonder de service te starten. Doe dit altijd voor je de service herstart, zodat je weet of een fout in de config zit.</p>
+<hr>
+<h2 id="4-linux-dhcp-leases-bekijken">4. Linux DHCP leases bekijken</h2>
+<pre><code class="lang-bash">tail /var/<span class="hljs-class"><span class="hljs-keyword">lib</span>/<span class="hljs-title">dhcpd</span>/<span class="hljs-title">dhcpd</span>.<span class="hljs-title">leases</span></span>
+systemctl status dhcpd -l
+</code></pre>
+<p><strong>Tip:</strong> Het leases-bestand toont welke IP-adressen zijn uitgedeeld, aan welk MAC-adres en tot wanneer. Dit is de snelste manier om te controleren of de DHCP-server daadwerkelijk adressen uitgeeft.</p>
+<hr>
+<h2 id="5-windows-dhcp-server-installeren">5. Windows DHCP server installeren</h2>
+<h3 id="via-server-manager-gui-op-dc-">Via Server Manager (GUI op DC)</h3>
+<ol>
+<li>Open <strong>Server Manager</strong></li>
+<li>Kies <strong>Manage → Add Roles and Features</strong></li>
+<li>Selecteer de rol <strong>DHCP Server</strong></li>
+<li>Voltooi de wizard en autoriseer de DHCP-server in Active Directory via de melding die na installatie verschijnt</li>
+</ol>
+<h3 id="via-powershell-op-core-server-of-dc-">Via PowerShell (op Core server of DC)</h3>
+<pre><code class="lang-powershell"><span class="hljs-keyword">Install</span>-WindowsFeature -<span class="hljs-keyword">Name</span> DHCP -IncludeManagementTools
+</code></pre>
+<h3 id="dhcp-beheertools-installeren-op-gui-server-voor-remote-beheer-">DHCP-beheertools installeren op GUI-server (voor remote beheer)</h3>
+<pre><code class="lang-powershell"><span class="hljs-keyword">Install</span>-WindowsFeature -<span class="hljs-keyword">Name</span> RSAT-DHCP
+</code></pre>
+<p><strong>Tip:</strong> Een Windows DHCP-server moet worden geautoriseerd in Active Directory voordat hij adressen uitgeeft. Zonder autorisatie heeft de server een rood kruisje in de DHCP-beheerconsole en doet hij niets. Dit beschermt het netwerk tegen onbevoegde DHCP-servers.</p>
+<hr>
+<h2 id="6-windows-dhcp-server-configureren-via-mmc-of-dhcp-console-">6. Windows DHCP server configureren (via MMC of DHCP-console)</h2>
+<ol>
+<li>Open <strong>DHCP</strong> via Server Manager of via <code>mmc.exe</code> met de DHCP-snap-in</li>
+<li>Verbind met de juiste server</li>
+<li>Rechtsklik op <strong>IPv4 → New Scope</strong></li>
+<li>Vul in:<ul>
+<li>IP-range: bijv. <code>192.168.14.100</code> t/m <code>192.168.14.199</code>, subnetmasker <code>/24</code></li>
+<li>Optie <strong>003 Router</strong>: gateway-IP</li>
+<li>Optie <strong>006 DNS Server</strong>: IP van de DNS-server</li>
+<li>Optie <strong>015 Domain Name</strong>: bijv. <code>bmc.test</code></li>
+</ul>
+</li>
+<li>Activeer de scope aan het einde van de wizard</li>
+</ol>
+<p><strong>Tip:</strong> De opties 003, 006 en 015 zijn gedefinieerd in RFC 2132 en vertellen de client niet alleen een IP-adres, maar ook gateway, DNS-server en domeinnaam. Zonder deze opties werkt DHCP maar heeft de client geen werkende naam­resolutie of routing.</p>
+<hr>
+<h2 id="7-dhcp-testen-op-windows-client">7. DHCP testen op Windows client</h2>
+<pre><code class="lang-cmd"><span class="hljs-built_in">ipconfig</span> /renew Ethernet1
+<span class="hljs-built_in">ipconfig</span> /all
+</code></pre>
+<p><strong>Tip:</strong> <code>ipconfig /all</code> toont bij elk adres ook de DHCP-server die het heeft uitgegeven. Zo controleer je in een netwerk met meerdere DHCP-servers (Linux en Windows) welke server welke client heeft bediend.</p>
+<hr>
+<h2 id="8-windows-dns-round-robin-instellen-dns-manager-">8. Windows DNS – Round Robin instellen (DNS Manager)</h2>
+<ol>
+<li>Open <strong>DNS Manager</strong> op de Domain Controller</li>
+<li>Navigeer naar de gewenste zone, bijv. <code>bmc.test</code></li>
+<li>Maak drie A-records aan met dezelfde naam maar verschillende IP-adressen:<ul>
+<li><code>home</code> → <code>1.0.0.1</code></li>
+<li><code>home</code> → <code>1.0.0.2</code></li>
+<li><code>home</code> → <code>1.0.0.3</code></li>
+</ul>
+</li>
+</ol>
+<p>Testen op de client:</p>
+<pre><code class="lang-cmd">ipconfig /flushdns
+ping home<span class="hljs-selector-class">.bmc</span><span class="hljs-selector-class">.test</span>
+ipconfig /flushdns
+ping home<span class="hljs-selector-class">.bmc</span><span class="hljs-selector-class">.test</span>
+</code></pre>
+<p><strong>Tip:</strong> DNS Round Robin werkt doordat de DNS-server bij elke query de volgorde van de A-records roteert. De DNS-cache op de client bewaart het antwoord, daarom is <code>ipconfig /flushdns</code> nodig tussen de tests om steeds een verse query te forceren.</p>
+<hr>
+<h2 id="9-linux-dns-server-bind-installeren">9. Linux DNS server (BIND) installeren</h2>
+<pre><code class="lang-bash">sudo dnf install <span class="hljs-built_in">bind</span> <span class="hljs-built_in">bind</span>-utils
+</code></pre>
+<p><strong>Tip:</strong> <code>bind</code> is de daadwerkelijke DNS-server (ook wel <code>named</code> genoemd). <code>bind-utils</code> levert de testgereedschappen <code>dig</code>, <code>nslookup</code> en <code>host</code>. Installeer beide altijd tegelijk.</p>
+<hr>
+<h2 id="10-linux-dns-server-configureren-named-conf">10. Linux DNS server configureren: named.conf</h2>
+<pre><code class="lang-bash">sudo nano <span class="hljs-regexp">/etc/</span>named.conf
+</code></pre>
+<p>Pas de <code>options</code>-sectie aan:</p>
+<pre><code>options {
+    <span class="hljs-section">listen</span>-on port <span class="hljs-number">53</span> { <span class="hljs-number">127.0</span><span class="hljs-number">.0</span><span class="hljs-number">.1</span>; (server-IP); };
+    allow-query     { localhost; (netwerk/prefix); };
+    allow-transfer  { localhost; (slave-DNS-IP); };
+};
+</code></pre><p>Voeg onderaan een zone-definitie toe:</p>
+<pre><code>zone <span class="hljs-string">"(domeinnaam)"</span> IN {
+    type master<span class="hljs-comment">;</span>
+    file <span class="hljs-string">"/var/named/(domeinnaam).db"</span><span class="hljs-comment">;</span>
+    notify yes<span class="hljs-comment">;</span>
+}<span class="hljs-comment">;</span>
+</code></pre><p><strong>Tip:</strong> <code>listen-on</code> bepaalt op welke IP-adressen de DNS-server luistert. <code>allow-query</code> bepaalt wie vragen mag stellen. Gebruik nooit <code>0.0.0.0</code> maar <code>any</code> als je alle adressen wilt toestaan. Een vergeten subnet hier is de meest voorkomende reden waarom clients geen antwoord krijgen terwijl de server zelf wel werkt.</p>
+<h3 id="relevante-bestanden-en-mappen-dns-linux-">Relevante bestanden en mappen (DNS Linux)</h3>
+<table>
+<thead>
+<tr>
+<th>Pad</th>
+<th>Beschrijving</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/etc/named.conf</code></td>
+<td>Hoofdconfiguratie van BIND</td>
+</tr>
+<tr>
+<td><code>/var/named/</code></td>
+<td>Map met zone-databasebestanden</td>
+</tr>
+<tr>
+<td><code>/var/named/named.empty</code></td>
+<td>Leeg zone-bestand als startpunt</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="11-linux-dns-forward-zone-aanmaken">11. Linux DNS forward zone aanmaken</h2>
+<pre><code class="lang-bash">sudo cp /<span class="hljs-built_in">var</span>/named/named.empty /<span class="hljs-built_in">var</span>/named/(domeinnaam).<span class="hljs-built_in">db</span>
+sudo nano /<span class="hljs-built_in">var</span>/named/(domeinnaam).<span class="hljs-built_in">db</span>
+</code></pre>
+<p>Structuur van een zone-bestand:</p>
+<pre><code><span class="hljs-meta">$TTL</span> <span class="hljs-number">300</span>
+
+@   <span class="hljs-keyword">IN</span>  <span class="hljs-keyword">SOA</span>  (primaire-<span class="hljs-keyword">NS</span>). hostmaster.(domeinnaam). (
+                (YYYYMMDD##)  <span class="hljs-comment">; Serial</span>
+                <span class="hljs-number">3</span>M            <span class="hljs-comment">; Refresh</span>
+                <span class="hljs-number">1</span>M            <span class="hljs-comment">; Retry</span>
+                <span class="hljs-number">30</span>D           <span class="hljs-comment">; Expire</span>
+                <span class="hljs-number">1</span>M )          <span class="hljs-comment">; Minimum TTL (negatieve cache)</span>
+
+<span class="hljs-comment">; Nameserver record</span>
+    <span class="hljs-keyword">IN</span>  <span class="hljs-keyword">NS</span>  (primaire-<span class="hljs-keyword">NS</span>).
+
+<span class="hljs-comment">; A-records</span>
+(primaire-<span class="hljs-keyword">NS</span> kortform)  <span class="hljs-keyword">IN</span>  <span class="hljs-keyword">A</span>  (IP-adres-server)
+(hostnaam)              <span class="hljs-keyword">IN</span>  <span class="hljs-keyword">A</span>  (IP-adres)
+
+<span class="hljs-comment">; Alias</span>
+www                     <span class="hljs-keyword">IN</span>  <span class="hljs-keyword">CNAME</span>  (hostnaam).
+</code></pre><p><strong>Voorbeeld voor bmc.example:</strong></p>
+<pre><code><span class="hljs-meta">$TTL</span> <span class="hljs-number">300</span>
+
+@   <span class="hljs-keyword">IN</span>  <span class="hljs-keyword">SOA</span>  rocky1.bmc.example. hostmaster.bmc.example. (
+                <span class="hljs-number">2024010601</span>    <span class="hljs-comment">; Serial</span>
+                <span class="hljs-number">3</span>M            <span class="hljs-comment">; Refresh</span>
+                <span class="hljs-number">1</span>M            <span class="hljs-comment">; Retry</span>
+                <span class="hljs-number">30</span>D           <span class="hljs-comment">; Expire</span>
+                <span class="hljs-number">1</span>M )          <span class="hljs-comment">; Minimum</span>
+
+    <span class="hljs-keyword">IN</span>  <span class="hljs-keyword">NS</span>  rocky1.bmc.example.
+
+rocky1  <span class="hljs-keyword">IN</span>  <span class="hljs-keyword">A</span>  <span class="hljs-number">192.168.15.1</span>
+dc1     <span class="hljs-keyword">IN</span>  <span class="hljs-keyword">A</span>  <span class="hljs-number">192.168.14.1</span>
+core1   <span class="hljs-keyword">IN</span>  <span class="hljs-keyword">A</span>  <span class="hljs-number">192.168.14.4</span>
+</code></pre><p><strong>Tip:</strong> Let op de punt aan het einde van elke Fully Qualified Domain Name (FQDN) zoals <code>rocky1.bmc.example.</code>. Zonder die punt wordt de domeinnaam er automatisch achter geplakt, wat leidt tot <code>rocky1.bmc.example.bmc.example.</code> — een veelgemaakte fout die moeilijk te zien is maar direct fout gaat.</p>
+<p>Het serienummer in het formaat <code>YYYYMMDD##</code> maakt het makkelijk bij te houden wanneer de laatste wijziging was. Verhoog het getal bij elke aanpassing, anders weten slave DNS-servers niet dat er iets veranderd is.</p>
+<hr>
+<h2 id="12-linux-dns-reverse-zone-aanmaken">12. Linux DNS reverse zone aanmaken</h2>
+<p>Voeg toe aan <code>/etc/named.conf</code>:</p>
+<pre><code class="lang-bash">sudo nano <span class="hljs-regexp">/etc/</span>named.conf
+</code></pre>
+<pre><code>zone <span class="hljs-string">"(omgekeerde-octetten).in-addr.arpa"</span> IN {
+    type master<span class="hljs-comment">;</span>
+    file <span class="hljs-string">"/var/named/(bestandsnaam).db"</span><span class="hljs-comment">;</span>
+}<span class="hljs-comment">;</span>
+</code></pre><p><strong>Voorbeeld voor 192.168.15.0/24:</strong></p>
+<pre><code>zone <span class="hljs-string">"15.168.192.in-addr.arpa"</span> IN {
+    type master<span class="hljs-comment">;</span>
+    file <span class="hljs-string">"/var/named/192.168.15.db"</span><span class="hljs-comment">;</span>
+}<span class="hljs-comment">;</span>
+</code></pre><p>Maak het zone-bestand aan:</p>
+<pre><code class="lang-bash">sudo nano /<span class="hljs-built_in">var</span>/named/<span class="hljs-number">192.168</span>.<span class="hljs-number">15</span>.<span class="hljs-built_in">db</span>
+</code></pre>
+<pre><code><span class="hljs-variable">$TTL</span> <span class="hljs-number">300</span>
+
+@   IN  SOA  rocky1<span class="hljs-selector-class">.bmc</span><span class="hljs-selector-class">.example</span>. hostmaster<span class="hljs-selector-class">.bmc</span><span class="hljs-selector-class">.example</span>. (
+                <span class="hljs-number">2024010601</span>
+                <span class="hljs-number">3</span>M
+                <span class="hljs-number">1</span>M
+                <span class="hljs-number">30</span>D
+                <span class="hljs-number">1</span>M )
+
+    IN  NS  rocky1<span class="hljs-selector-class">.bmc</span><span class="hljs-selector-class">.example</span>.
+
+<span class="hljs-number">1</span>   IN  PTR  rocky1<span class="hljs-selector-class">.bmc</span><span class="hljs-selector-class">.example</span>.
+<span class="hljs-number">4</span>   IN  PTR  core1<span class="hljs-selector-class">.bmc</span><span class="hljs-selector-class">.example</span>.
+<span class="hljs-number">254</span> IN  PTR  vyos<span class="hljs-selector-class">.bmc</span><span class="hljs-selector-class">.example</span>.
+</code></pre><p><strong>Tip:</strong> In een reverse zone schrijf je alleen het laatste octet van het IP-adres als naam van het PTR-record. Dus voor <code>192.168.15.1</code> schrijf je <code>1 IN PTR rocky1.bmc.example.</code>. De rest van het adres zit al opgesloten in de zone-naam <code>15.168.192.in-addr.arpa</code>.</p>
+<p>Reverse DNS is nuttig voor traceroute (toont hostnamen), voor logging (leesbare namen in logbestanden) en wordt door sommige services gecontroleerd als extra authenticatie.</p>
+<hr>
+<h2 id="13-linux-dns-configuratie-controleren">13. Linux DNS configuratie controleren</h2>
+<pre><code class="lang-bash">sudo -u <span class="hljs-keyword">named</span> <span class="hljs-keyword">named</span>-checkconf /etc/<span class="hljs-keyword">named</span>.conf
+sudo -u <span class="hljs-keyword">named</span> <span class="hljs-keyword">named</span>-checkzone (domeinnaam) /var/<span class="hljs-keyword">named</span>/(domeinnaam).db
+sudo -u <span class="hljs-keyword">named</span> <span class="hljs-keyword">named</span>-checkconf -z
+</code></pre>
+<p><strong>Tip:</strong> <code>sudo -u named</code> voert de controle uit als de <code>named</code>-gebruiker. Dit heeft als voordeel dat rechtenfouten (bijv. het zone-bestand is niet leesbaar voor <code>named</code>) direct zichtbaar worden als &quot;permission denied&quot; in de output. Als je het als root uitvoert, zie je deze rechtenfouten niet.
+Ook als je error krijgt van permission denied probeer dan het volgende commands.</p>
+<pre><code class="lang-bash">chwon nam<span class="hljs-symbol">ed:na</span>med /<span class="hljs-built_in">var</span>/named/(domeinnaam).<span class="hljs-built_in">db</span>
+chmod <span class="hljs-number">640</span> /<span class="hljs-built_in">var</span>/named/(domeinnaam).<span class="hljs-built_in">db</span>
+</code></pre>
+<hr>
+<h2 id="14-linux-dns-firewall-opstarten-en-herladen">14. Linux DNS firewall, opstarten en herladen</h2>
+<pre><code class="lang-bash">sudo firewall-<span class="hljs-keyword">cmd</span><span class="bash"> --add-service=dns
+</span>sudo firewall-<span class="hljs-keyword">cmd</span><span class="bash"> --runtime-to-permanent
+</span>sudo systemctl enable --now named
+sudo systemctl reload named
+sudo systemctl status named
+</code></pre>
+<p><strong>Tip:</strong> Gebruik <code>reload</code> in plaats van <code>restart</code> om een gewijzigde configuratie actief te maken. Bij <code>reload</code> worden bestaande verbindingen niet verbroken. <code>restart</code> stopt de service volledig en start hem opnieuw, wat een korte onderbreking veroorzaakt.</p>
+<hr>
+<h2 id="15-linux-dns-testen">15. Linux DNS testen</h2>
+<pre><code class="lang-bash"><span class="hljs-selector-tag">dig</span> +<span class="hljs-selector-tag">noall</span> +<span class="hljs-selector-tag">answer</span> (hostnaam) @<span class="hljs-selector-tag">127</span><span class="hljs-selector-class">.0</span><span class="hljs-selector-class">.0</span><span class="hljs-selector-class">.1</span>
+<span class="hljs-selector-tag">dig</span> +<span class="hljs-selector-tag">noall</span> +<span class="hljs-selector-tag">answer</span> (hostnaam) @(server-IP)
+<span class="hljs-selector-tag">dig</span> +<span class="hljs-selector-tag">noall</span> +<span class="hljs-selector-tag">answer</span> <span class="hljs-selector-tag">-x</span> (IP-adres) @<span class="hljs-selector-tag">127</span><span class="hljs-selector-class">.0</span><span class="hljs-selector-class">.0</span><span class="hljs-selector-class">.1</span>
+<span class="hljs-selector-tag">nslookup</span> (hostnaam)
+<span class="hljs-selector-tag">host</span> (hostnaam)
+</code></pre>
+<p><strong>Tip:</strong> Met <code>@(IP-adres)</code> geef je aan welke DNS-server je wilt bevragen. Dit is essentieel voor testen: zo weet je zeker dat jouw server antwoordt en niet de DNS-server van het besturingssysteem. Test altijd eerst op <code>@127.0.0.1</code> (lokaal) en daarna op het externe IP-adres.</p>
+<hr>
+<h2 id="16-linux-dns-client-instellen">16. Linux DNS client instellen</h2>
+<pre><code class="lang-bash">sudo nano <span class="hljs-regexp">/etc/</span>resolv.conf
+</code></pre>
+<pre><code><span class="hljs-selector-tag">search</span> (<span class="hljs-selector-tag">domeinnaam</span>)
+<span class="hljs-selector-tag">nameserver</span> 127<span class="hljs-selector-class">.0</span><span class="hljs-selector-class">.0</span><span class="hljs-selector-class">.1</span>
+</code></pre><p>Volgorde van naamresolutie bekijken:</p>
+<pre><code class="lang-bash"><span class="hljs-keyword">grep</span> hosts <span class="hljs-regexp">/etc/</span>nsswitch.conf
+</code></pre>
+<p>De regel <code>hosts: files dns</code> betekent: kijk eerst in <code>/etc/hosts</code>, dan pas in DNS.</p>
+<p><strong>Tip:</strong> Na het aanpassen van de netwerkinterface-instellingen kan <code>/etc/resolv.conf</code> automatisch worden overschreven door NetworkManager. Controleer het bestand altijd opnieuw nadat je het interface hebt gedeactiveerd en geactiveerd.</p>
+|
+<a href="../../notities.html">Terug naar notities.</a> |
+

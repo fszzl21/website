@@ -1,0 +1,307 @@
+<h1 id="http-smb">HTTP &amp; SMB</h1>
+<hr>
+<h2 id="1-apache-webserver-installeren-rocky-linux-">1. Apache Webserver installeren (Rocky Linux)</h2>
+<h3 id="installatie-service-starten">Installatie &amp; Service starten</h3>
+<pre><code class="lang-bash">sudo dnf <span class="hljs-keyword">install</span> httpd
+sudo systemctl <span class="hljs-keyword">enable</span> <span class="hljs-comment">--now httpd</span>
+</code></pre>
+<h3 id="firewall-openzetten-voor-http">Firewall openzetten voor HTTP</h3>
+<pre><code class="lang-bash">sudo firewall-<span class="hljs-keyword">cmd</span><span class="bash"> --add-service=http --permanent
+</span>sudo firewall-<span class="hljs-keyword">cmd</span><span class="bash"> --reload</span>
+</code></pre>
+<p><strong>Waarom?</strong> Rocky Linux blokkeert standaard alle inkomende poorten. Zonder deze stap is je webserver onbereikbaar van buitenaf, ook al draait Apache zelf prima.</p>
+<hr>
+<h2 id="2-website-directory-aanmaken-rechten-instellen">2. Website-directory aanmaken &amp; rechten instellen</h2>
+<h3 id="directory-aanmaken-en-html-pagina-plaatsen">Directory aanmaken en HTML-pagina plaatsen</h3>
+<pre><code class="lang-bash">sudo mkdir /<span class="hljs-keyword">var</span>/www/(domeinnaam)
+sudo nano /<span class="hljs-keyword">var</span>/www/(domeinnaam)/<span class="hljs-keyword">index</span>.html
+</code></pre>
+<h3 id="bestandsrechten-instellen-apache-mag-lezen-niet-schrijven-">Bestandsrechten instellen (Apache mag lezen, niet schrijven)</h3>
+<pre><code class="lang-bash">sudo chown -R (eigenaar):(eigenaar) <span class="hljs-regexp">/var/www/</span>
+sudo chmod -R <span class="hljs-number">755</span> /<span class="hljs-keyword">var</span><span class="hljs-regexp">/www/</span>
+</code></pre>
+<p><strong>Waarom?</strong> Met <code>755</code> heeft de eigenaar lees/schrijf/uitvoer-rechten, maar de Apache-user (<code>apache</code>) valt onder &quot;anderen&quot; en krijgt alleen leesrechten. Schrijfrechten voor Apache zouden een beveiligingsrisico zijn.</p>
+<h3 id="relevante-bestanden-mappen">Relevante bestanden &amp; mappen</h3>
+<table>
+<thead>
+<tr>
+<th>Pad</th>
+<th>Beschrijving</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/var/www/</code></td>
+<td>Standaard webroot van Apache</td>
+</tr>
+<tr>
+<td><code>/var/www/(domeinnaam)/index.html</code></td>
+<td>Hoofdpagina van de website</td>
+</tr>
+<tr>
+<td><code>/etc/httpd/conf/httpd.conf</code></td>
+<td>Hoofdconfiguratie van Apache</td>
+</tr>
+<tr>
+<td><code>/etc/httpd/conf.d/</code></td>
+<td>Map voor Virtual Host configuratiebestanden</td>
+</tr>
+<tr>
+<td><code>/var/log/httpd/error_log</code></td>
+<td>Logbestand met Apache-foutmeldingen</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="3-dns-cname-record-toevoegen">3. DNS CNAME record toevoegen</h2>
+<pre><code class="lang-bash">sudo nano /<span class="hljs-built_in">var</span>/named/(domeinnaam).<span class="hljs-built_in">db</span>
+</code></pre>
+<p>Voeg toe aan het zonebestand:</p>
+<pre><code>www    <span class="hljs-keyword">IN</span>    <span class="hljs-keyword">CNAME</span>    @
+</code></pre><p>Vergeet niet het <strong>serienummer</strong> te verhogen, dan de zone herladen:</p>
+<pre><code class="lang-bash">sudo <span class="hljs-keyword">named</span>-checkzone (domeinnaam) /var/<span class="hljs-keyword">named</span>/(domeinnaam).db
+sudo systemctl reload <span class="hljs-keyword">named</span>
+</code></pre>
+<p><strong>Waarom?</strong> Een CNAME koppelt <code>www.bmc.example</code> aan de bestaande A-record van de server, zodat beide namen naar hetzelfde IP-adres verwijzen zonder dat je twee A-records hoeft bij te houden.</p>
+<hr>
+<h2 id="4-virtual-host-vhost-aanmaken">4. Virtual Host (vhost) aanmaken</h2>
+<pre><code class="lang-bash">sudo nano <span class="hljs-regexp">/etc/</span>httpd<span class="hljs-regexp">/conf.d/</span>(domeinnaam).conf
+</code></pre>
+<p>Inhoud van het configuratiebestand:</p>
+<pre><code class="lang-apacheconf"><span class="hljs-section">&lt;VirtualHost *:80&gt;</span>
+    <span class="hljs-attribute"><span class="hljs-nomarkup">ServerName</span></span> www.(domeinnaam)
+    <span class="hljs-attribute">ServerAlias</span> (domeinnaam)
+    <span class="hljs-attribute"><span class="hljs-nomarkup">DocumentRoot</span></span> /var/www/(domeinnaam)
+<span class="hljs-section">&lt;/VirtualHost&gt;</span>
+</code></pre>
+<h3 id="configuratie-testen-en-apache-herstarten">Configuratie testen en Apache herstarten</h3>
+<pre><code class="lang-bash"><span class="hljs-attribute">apachectl configtest
+sudo systemctl restart httpd</span>
+</code></pre>
+<p><strong>Waarom?</strong> Met <code>apachectl configtest</code> controleer je de syntaxis voordat je herstart. Op een productieserver kan een fout in de configuratie alle andere sites offline halen.</p>
+<hr>
+<h2 id="5-webroot-verplaatsen-naar-plf-www-selinux-oefening-">5. Webroot verplaatsen naar <code>/plf/www</code> (SELinux oefening)</h2>
+<h3 id="nieuwe-directorystructuur-aanmaken">Nieuwe directorystructuur aanmaken</h3>
+<pre><code class="lang-bash">sudo mkdir -<span class="hljs-selector-tag">p</span> /plf/www/<span class="hljs-selector-tag">html</span> /plf/www/cgi-bin
+sudo chmod -R <span class="hljs-number">755</span> /plf
+</code></pre>
+<h3 id="apache-configuratie-aanpassen">Apache-configuratie aanpassen</h3>
+<pre><code class="lang-bash">sudo nano <span class="hljs-regexp">/etc/</span>httpd<span class="hljs-regexp">/conf/</span>httpd.conf
+</code></pre>
+<p>Gebruik in nano <strong>Ctrl+W</strong> om te zoeken, <strong>Alt+R</strong> om te zoeken én te vervangen.
+Vervang alle vermeldingen van <code>/var/www</code> door <code>/plf/www</code>.</p>
+<pre><code class="lang-bash"><span class="hljs-attribute">sudo systemctl restart httpd</span>
+</code></pre>
+<p><strong>Waarom?</strong> Door de webroot te verplaatsen naar een niet-standaardpad simuleer je een echte situatie waarbij SELinux ingrijpt — dit leert je hoe je beveiligingsconflicten structureel oplost.</p>
+<h3 id="testpagina-aanmaken">Testpagina aanmaken</h3>
+<pre><code class="lang-bash">sudo nano <span class="hljs-regexp">/plf/</span>www<span class="hljs-regexp">/html/</span>test.html
+</code></pre>
+<hr>
+<h2 id="6-selinux-bestandscontext-corrigeren">6. SELinux: Bestandscontext corrigeren</h2>
+<h3 id="huidige-context-bekijken">Huidige context bekijken</h3>
+<pre><code class="lang-bash"><span class="hljs-keyword">ls</span> -Z /<span class="hljs-keyword">var</span>/www
+<span class="hljs-keyword">ls</span> -Z /plf/www
+</code></pre>
+<h3 id="tijdelijke-fix-context-handmatig-instellen">Tijdelijke fix: context handmatig instellen</h3>
+<pre><code class="lang-bash">sudo chcon -R -t <span class="hljs-keyword">httpd_sys_content_t</span> /plf/www
+</code></pre>
+<p><strong>Waarom?</strong> SELinux controleert niet alleen bestandsrechten (<code>chmod</code>), maar ook beveiligingslabels (contexts). Apache mag alleen bestanden lezen met het label <code>httpd_sys_content_t</code>.</p>
+<h3 id="toegestane-http-poorten-bekijken">Toegestane HTTP-poorten bekijken</h3>
+<pre><code class="lang-bash">sudo semanage port -l <span class="hljs-string">| grep http</span>
+</code></pre>
+<h3 id="context-terugzetten-naar-standaard-om-probleem-te-reproduceren-">Context terugzetten naar standaard (om probleem te reproduceren)</h3>
+<pre><code class="lang-bash">sudo restorecon -R <span class="hljs-regexp">/plf/</span>www
+</code></pre>
+<h3 id="structurele-fix-context-permanent-vastleggen">Structurele fix: context permanent vastleggen</h3>
+<pre><code class="lang-bash">sudo semanage fcontext -<span class="hljs-selector-tag">a</span> -t httpd_sys_content_t <span class="hljs-string">"/plf/www(/.*)?"</span>
+sudo restorecon -R -v /plf/www
+</code></pre>
+<p><strong>Waarom?</strong> <code>chcon</code> is tijdelijk — bij een SELinux-relabel (b.v. na <code>restorecon</code>) gaat de context verloren. Met <code>semanage fcontext</code> leg je de regel permanent vast in de SELinux-database.</p>
+<h3 id="selinux-fouten-analyseren">SELinux-fouten analyseren</h3>
+<pre><code class="lang-bash">sudo grep http /<span class="hljs-built_in">var</span>/<span class="hljs-built_in">log</span>/audit/audit.log | audit2why
+sudo tail -<span class="hljs-built_in">n</span> <span class="hljs-number">25</span> /<span class="hljs-built_in">var</span>/<span class="hljs-built_in">log</span>/httpd/error_log
+</code></pre>
+<h3 id="relevante-bestanden-mappen-selinux-">Relevante bestanden &amp; mappen (SELinux)</h3>
+<table>
+<thead>
+<tr>
+<th>Pad</th>
+<th>Beschrijving</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/plf/www/html/</code></td>
+<td>Verplaatste webroot</td>
+</tr>
+<tr>
+<td><code>/plf/www/cgi-bin/</code></td>
+<td>CGI-scripts directory</td>
+</tr>
+<tr>
+<td><code>/var/log/audit/audit.log</code></td>
+<td>SELinux audit-logboek</td>
+</tr>
+<tr>
+<td><code>/var/log/httpd/error_log</code></td>
+<td>Apache foutmeldingen</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="7-iis-installeren-op-windows-server">7. IIS installeren op Windows Server</h2>
+<h3 id="via-server-manager-gui-">Via Server Manager (GUI)</h3>
+<ol>
+<li>Open <strong>Server Manager</strong></li>
+<li>Klik op <strong>Manage → Add Roles and Features</strong></li>
+<li>Kies <strong>Web Server (IIS)</strong></li>
+<li>Voeg toe: <strong>Security-opties</strong> (Basic Auth, Windows Auth, IP Restrictions) en <strong>Management Service</strong></li>
+<li>Voltooi de wizard</li>
+</ol>
+<p><strong>Waarom?</strong> De Management Service is nodig voor beheer op afstand (via IIS Manager of Remote IIS). Zonder deze rol kun je IIS alleen lokaal beheren.</p>
+<h3 id="iis-installeren-via-powershell-alternatief-">IIS installeren via PowerShell (alternatief)</h3>
+<pre><code class="lang-powershell"><span class="hljs-keyword">Import</span>-<span class="hljs-keyword">Module</span> ServerManager
+<span class="hljs-keyword">Add</span>-WindowsFeature Web-Server -IncludeAllSubFeature
+</code></pre>
+<h3 id="remote-management-inschakelen-op-core-server">Remote management inschakelen op Core server</h3>
+<pre><code class="lang-powershell"><span class="hljs-built_in">Set</span>-ItemProperty -<span class="hljs-built_in">Path</span> HKLM:\SOFTWARE\Microsoft\WebManagement\Server `
+  -Name EnableRemoteManagement -Value <span class="hljs-number">1</span>
+<span class="hljs-built_in">Net</span> Stop WMSVC
+<span class="hljs-built_in">Net</span> <span class="hljs-built_in">Start</span> WMSVC
+</code></pre>
+<p><strong>Waarom?</strong> Een Windows Core server heeft geen GUI. Remote management via de bovenstaande registry-instelling maakt het mogelijk om IIS vanaf een andere machine te beheren.</p>
+<hr>
+<h2 id="8-iis-beveiligen-default-web-site-">8. IIS beveiligen (Default Web Site)</h2>
+<h3 id="ip-restrictie-instellen-gui-">IP-restrictie instellen (GUI)</h3>
+<ol>
+<li>Open <strong>IIS Manager → Default Web Site → IP Address and Domain Restrictions</strong></li>
+<li>Stel <strong>Default access</strong> in op <strong>Deny</strong></li>
+<li>Voeg toe: <strong>Allow</strong> <code>192.168.2.0/255.255.255.0</code></li>
+<li>Voeg toe: <strong>Deny</strong> <code>192.168.2.2</code></li>
+</ol>
+<p><strong>Waarom?</strong> Met een &quot;deny-all&quot; standaard + expliciete allow-regels zorg je dat alleen bekende netwerken toegang krijgen — dit heet een whitelist-aanpak en is veiliger dan een blacklist.</p>
+<h3 id="authenticatie-instellen-gui-">Authenticatie instellen (GUI)</h3>
+<ol>
+<li><strong>IIS Manager → Default Web Site → Authentication</strong></li>
+<li>Schakel <strong>Basic Authentication</strong> in, stel realm in op <code>Basic authentication</code></li>
+<li>Daarna: schakel <strong>Basic Authentication</strong> uit en schakel <strong>Windows Authentication</strong> in</li>
+</ol>
+<p><strong>Waarom?</strong> Basic Authentication stuurt het wachtwoord (base64-gecodeerd maar <em>niet</em> versleuteld) mee met elk request. Windows Authentication gebruikt Kerberos of NTLM en stuurt nooit het wachtwoord zelf over het netwerk.</p>
+<h3 id="logging-uitbreiden-gui-">Logging uitbreiden (GUI)</h3>
+<ol>
+<li><strong>IIS Manager → Default Web Site → Logging</strong></li>
+<li>Klik op <strong>Select Fields</strong> en activeer <strong>alle beschikbare velden</strong></li>
+</ol>
+<hr>
+<h2 id="9-windows-shared-folder-aanmaken">9. Windows Shared Folder aanmaken</h2>
+<h3 id="via-gui-op-dc-">Via GUI (op DC)</h3>
+<ol>
+<li>Maak de map aan: <code>C:\data\share1</code></li>
+<li>Rechtsklik → <strong>Properties → Security</strong> tab:<ul>
+<li><strong>Users</strong>: Read &amp; Execute</li>
+<li><strong>Administrators</strong>: Full Control</li>
+</ul>
+</li>
+<li>Rechtsklik → <strong>Properties → Sharing</strong> tab → <strong>Advanced Sharing</strong></li>
+<li>Vink aan: <strong>Share this folder</strong>, naam: <code>share1</code></li>
+<li>Klik op <strong>Permissions</strong>: stel <strong>Read</strong> in voor <strong>Everyone</strong></li>
+</ol>
+<p><strong>Waarom?</strong> Er zijn twee lagen rechten: NTFS-rechten (op het bestandssysteem) en Share-rechten (op het netwerk). De meest beperkende combinatie wint — daarom mag een administrator op de share volledig, maar worden ze op netwerkniveau teruggebracht naar Read.</p>
+<h3 id="via-powershell-op-core-server-">Via PowerShell (op Core server)</h3>
+<pre><code class="lang-powershell">New-SmbShare -Name <span class="hljs-string">"share1"</span> -<span class="hljs-keyword">Path</span> <span class="hljs-string">"C:\data\share1"</span> -FullAccess <span class="hljs-string">"Administrators"</span> -ReadAccess <span class="hljs-string">"Users"</span>
+<span class="hljs-keyword">Get</span>-SmbShare
+</code></pre>
+<p><strong>Waarom?</strong> Op een Core server zonder GUI is PowerShell de enige manier. <code>Get-SmbShare</code> toont alle gedeelde mappen, inclusief de verborgen admin-shares zoals <code>C$</code> en <code>ADMIN$</code>.</p>
+<h3 id="logfile-kopi-ren-naar-share-core-">Logfile kopiëren naar share (Core)</h3>
+<pre><code class="lang-powershell">Copy-Item "C:<span class="hljs-symbol">\i</span>netpub<span class="hljs-symbol">\l</span>ogs<span class="hljs-symbol">\L</span>ogFiles<span class="hljs-symbol">\W</span>3SVC1<span class="hljs-symbol">\(</span>logbestand)" "C:<span class="hljs-symbol">\d</span>ata<span class="hljs-symbol">\s</span>hare1<span class="hljs-symbol">\"</span>
+</code></pre>
+<hr>
+<h2 id="10-samba-installeren-en-configureren-rocky-linux-">10. Samba installeren en configureren (Rocky Linux)</h2>
+<h3 id="installatie-service-starten">Installatie &amp; Service starten</h3>
+<pre><code class="lang-bash">sudo dnf <span class="hljs-keyword">install</span> samba*
+sudo systemctl <span class="hljs-keyword">enable</span> <span class="hljs-comment">--now smb nmb</span>
+</code></pre>
+<p><strong>Waarom?</strong> Samba bestaat uit meerdere daemons: <code>smbd</code> verzorgt file sharing en authenticatie, <code>nmbd</code> regelt NetBIOS-naamresolutie zodat Windows de server kan vinden op naam.</p>
+<h3 id="originele-config-bewaren-en-nieuwe-aanmaken">Originele config bewaren en nieuwe aanmaken</h3>
+<pre><code class="lang-bash">sudo mv <span class="hljs-regexp">/etc/</span>samba<span class="hljs-regexp">/smb.conf /</span>etc<span class="hljs-regexp">/samba/</span>smb.conf~
+sudo nano <span class="hljs-regexp">/etc/</span>samba<span class="hljs-regexp">/smb.conf</span>
+</code></pre>
+<p>Inhoud van de nieuwe <code>smb.conf</code>:</p>
+<pre><code class="lang-ini">[global]
+<span class="hljs-attr">workgroup</span> = (WERKGROEP)
+server <span class="hljs-attr">string</span> = Samba Server %v
+netbios <span class="hljs-attr">name</span> = (SERVERNAAM)
+<span class="hljs-attr">security</span> = user
+<span class="hljs-built_in">map</span> to <span class="hljs-attr">guest</span> = bad user
+dns <span class="hljs-attr">proxy</span> = no
+
+<span class="hljs-comment">#==================== Share Definitions ======================</span>
+[secure]
+<span class="hljs-attr">path</span> = /home/secure
+valid <span class="hljs-attr">users</span> = @smbgrp
+guest <span class="hljs-attr">ok</span> = no
+<span class="hljs-attr">writable</span> = yes
+<span class="hljs-attr">browsable</span> = yes
+</code></pre>
+<p><strong>Waarom?</strong> Door de originele config te hernoemen met <code>~</code> heb je altijd een backup als je configuratie niet werkt. De <code>[global]</code> sectie bepaalt het gedrag van de hele server; de <code>[secure]</code> sectie definieert de gedeelde map.</p>
+<h3 id="gebruiker-en-groep-aanmaken">Gebruiker en groep aanmaken</h3>
+<pre><code class="lang-bash">sudo useradd (<span class="hljs-name">gebruikersnaam</span>)
+sudo groupadd smbgrp
+sudo usermod -a -G smbgrp (<span class="hljs-name">gebruikersnaam</span>)
+sudo smbpasswd -a (<span class="hljs-name">gebruikersnaam</span>)
+</code></pre>
+<p><strong>Waarom?</strong> Samba heeft een apart wachtwoordbestand naast het Linux-wachtwoord. <code>smbpasswd -a</code> voegt de gebruiker toe aan de Samba-database — zonder dit stap kan de gebruiker niet inloggen via het netwerk.</p>
+<h3 id="rechten-op-de-gedeelde-directory-instellen">Rechten op de gedeelde directory instellen</h3>
+<pre><code class="lang-bash">sudo <span class="hljs-built_in">mkdir</span> /<span class="hljs-built_in">home</span>/secure
+sudo chown -R (gebruikersnaam):smbgrp /<span class="hljs-built_in">home</span>/secure/
+sudo chmod -R <span class="hljs-number">0770</span> /<span class="hljs-built_in">home</span>/secure/
+sudo chcon -t samba_share_t /<span class="hljs-built_in">home</span>/secure/
+</code></pre>
+<p><strong>Waarom?</strong> <code>chmod 0770</code> geeft de eigenaar én groepsleden volledige rechten, maar blokkeert iedereen buiten de groep. De <code>chcon</code> regel is noodzakelijk voor SELinux — zonder het juiste label <code>samba_share_t</code> zal SELinux de toegang blokkeren.</p>
+<h3 id="firewall-openzetten-voor-samba">Firewall openzetten voor Samba</h3>
+<pre><code class="lang-bash">sudo firewall-<span class="hljs-keyword">cmd</span><span class="bash"> --add-service=samba
+</span>sudo firewall-<span class="hljs-keyword">cmd</span><span class="bash"> --runtime-to-permanent</span>
+</code></pre>
+<h3 id="samba-services-herstarten">Samba services herstarten</h3>
+<pre><code class="lang-bash"><span class="hljs-attribute">sudo systemctl restart smb nmb</span>
+</code></pre>
+<h3 id="samba-configuratie-controleren">Samba-configuratie controleren</h3>
+<pre><code class="lang-bash"><span class="hljs-attribute">testparm</span>
+</code></pre>
+<p><strong>Waarom?</strong> <code>testparm</code> controleert <code>/etc/samba/smb.conf</code> op syntaxisfouten en toont de resulterende shares — vergelijkbaar met <code>apachectl configtest</code> voor Apache.</p>
+<h3 id="relevante-bestanden-mappen-samba-">Relevante bestanden &amp; mappen (Samba)</h3>
+<table>
+<thead>
+<tr>
+<th>Pad</th>
+<th>Beschrijving</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/etc/samba/smb.conf</code></td>
+<td>Hoofd-configuratiebestand van Samba</td>
+</tr>
+<tr>
+<td><code>/etc/samba/smb.conf~</code></td>
+<td>Backup van de originele configuratie</td>
+</tr>
+<tr>
+<td><code>/home/secure/</code></td>
+<td>De gedeelde directory</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="11-samba-share-benaderen-vanuit-windows-client-">11. Samba-share benaderen vanuit Windows (client)</h2>
+<ol>
+<li>Open <strong>Windows Explorer</strong></li>
+<li>Rechtsklik op <strong>This PC</strong> → <strong>Map network drive...</strong></li>
+<li>Voer als sharenaam in: <code>\\(servernaam)\secure</code></li>
+<li>Deselecteer <strong>Reconnect at sign-in</strong></li>
+<li>Selecteer <strong>Connect using different credentials</strong></li>
+<li>Voer de credentials in van de Samba-gebruiker (<code>(gebruikersnaam)</code> + Samba-wachtwoord)</li>
+</ol>
+<p><strong>Waarom?</strong> Als de Windows-client lid is van een Windows-domein, zal Windows automatisch proberen in te loggen met de domeinaccount. Door &quot;different credentials&quot; te kiezen, forceer je het gebruik van de Samba-gebruiker op de Linux-server.</p>
+|
+<a href="../../notities.html">Terug naar notities.</a> |

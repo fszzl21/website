@@ -1,0 +1,119 @@
+<h1 id="linux-vm-fundamentals">Linux &amp; VM Fundamentals</h1>
+
+<h2 id="belangrijke-bestanden-mappen">Belangrijke bestanden &amp; mappen</h2>
+<pre><code><span class="hljs-meta-keyword">/etc/</span>passwd          <span class="hljs-meta"># Gebruikersaccounts</span>
+<span class="hljs-meta-keyword">/etc/</span>shadow          <span class="hljs-meta"># Versleutelde wachtwoorden</span>
+<span class="hljs-meta-keyword">/etc/</span>group           <span class="hljs-meta"># Groepen</span>
+<span class="hljs-meta-keyword">/etc/</span>sudoers         <span class="hljs-meta"># Sudo-rechten configuratie</span>
+<span class="hljs-meta-keyword">/etc/</span>skel/           <span class="hljs-meta"># Standaard home-directory inhoud (wordt gekopieerd bij useradd -m)</span>
+<span class="hljs-meta-keyword">/home/</span>(gebruiker)/   <span class="hljs-meta"># Home-directories van gebruikers</span>
+<span class="hljs-meta-keyword">/root/</span>               <span class="hljs-meta"># Home-directory van root</span>
+</code></pre><hr>
+<blockquote>
+<p>Honorable mention :P</p>
+</blockquote>
+<h2 id="vmware-vm-aanmaken">VMware — VM aanmaken</h2>
+<p><strong>Windows:</strong></p>
+<ol>
+<li>VMware → New Virtual Machine → Custom</li>
+<li>&quot;I will install the operating system later&quot;</li>
+<li>Sla op buiten OneDrive (bijv. <code>C:\VMs</code>)</li>
+<li>Koppel ISO achteraf via VM Settings → CD/DVD</li>
+</ol>
+<p><strong>Linked clone maken:</strong></p>
+<ol>
+<li>Sysprep draaien in de VM: <code>C:\Windows\System32\sysprep\sysprep.exe</code><ul>
+<li>Kies OOBE → vink &quot;Generalize&quot; aan → Shutdown</li>
+</ul>
+</li>
+<li>In VMware: rechtermuisklik op VM → Manage → Clone</li>
+<li>Base/parent VM nooit meer opstarten!</li>
+</ol>
+<blockquote>
+<p> Linked clones delen de basisdisk met de parent — dit bespaart veel schijfruimte bij meerdere VM&#39;s van hetzelfde OS.</p>
+</blockquote>
+<hr>
+<h2 id="package-management-dnf-">Package management (DNF)</h2>
+<pre><code class="lang-bash"><span class="hljs-comment"># Updaten</span>
+sudo dnf upgrade
+
+<span class="hljs-comment"># Pakket installeren</span>
+sudo dnf install (pakket)
+sudo dnf install (pakket1) (pakket2)      <span class="hljs-comment"># Meerdere tegelijk</span>
+
+<span class="hljs-comment"># Pakket verwijderen (wildcards mogelijk)</span>
+sudo dnf remove (pakket)
+sudo dnf remove iwl*-firmware             <span class="hljs-comment"># Voorbeeld wildcard</span>
+
+<span class="hljs-comment"># Groepen bekijken en installeren</span>
+sudo dnf <span class="hljs-keyword">group</span> <span class="hljs-title">list</span>
+sudo dnf <span class="hljs-keyword">group</span> <span class="hljs-title">info</span> (groepsnaam)
+sudo dnf <span class="hljs-keyword">group</span> <span class="hljs-title">install</span> <span class="hljs-string">"(groepsnaam)"</span>
+</code></pre>
+<blockquote>
+<p> Gebruik wildcards met <code>*</code> om meerdere gerelateerde pakketten in één keer te verwijderen, bijv. alle WiFi-firmware op een server die dat toch nooit nodig heeft.</p>
+</blockquote>
+<hr>
+<h2 id="groepen-aanmaken">Groepen aanmaken</h2>
+<pre><code class="lang-bash">sudo groupadd (<span class="hljs-name">groepsnaam</span>)
+</code></pre>
+<hr>
+<h2 id="gebruikers-aanmaken">Gebruikers aanmaken</h2>
+<pre><code class="lang-bash"><span class="hljs-meta"># Gebruiker aanmaken met home-directory</span>
+sudo useradd -m -g users -G (groep1),(groep2) (gebruikersnaam)
+
+<span class="hljs-meta"># Wachtwoord instellen</span>
+sudo passwd (gebruikersnaam)
+
+<span class="hljs-meta"># Inloggen als andere gebruiker</span>
+su (gebruikersnaam)
+</code></pre>
+<blockquote>
+<p> <code>-m</code> zorgt dat de home-directory aangemaakt wordt. Zonder <code>-m</code> heeft de gebruiker geen eigen map, wat problemen geeft bij inloggen.</p>
+</blockquote>
+<hr>
+<h2 id="wachtwoordbeleid-instellen">Wachtwoordbeleid instellen</h2>
+<pre><code class="lang-bash">sudo chage -M<span class="hljs-number"> 40 </span>-W<span class="hljs-number"> 7 </span>-m<span class="hljs-number"> 1 </span>(gebruikersnaam)   <span class="hljs-comment"># max / waarschuwing / min dagen</span>
+sudo chage -l (gebruikersnaam)                  <span class="hljs-comment"># Instellingen bekijken</span>
+</code></pre>
+<blockquote>
+<p> In een bedrijfsomgeving is wachtwoordbeleid verplicht vanuit beveiligingsstandaarden (bijv. ISO 27001). Met <code>chage</code> stel je dit per gebruiker in, maar via Group Policy (Windows) of PAM (Linux) doe je dit organisatiebreed.</p>
+</blockquote>
+<hr>
+<h2 id="account-locken-unlocken">Account locken / unlocken</h2>
+<pre><code class="lang-bash">sudo usermod -L (<span class="hljs-name">gebruikersnaam</span>)    # Locken
+sudo usermod -U (<span class="hljs-name">gebruikersnaam</span>)    # Unlocken
+</code></pre>
+<blockquote>
+<p> Lock een account als iemand uit dienst gaat maar je de data nog niet wilt verwijderen. In <code>/etc/shadow</code> herken je een vergrendeld account aan een <code>!</code> voor het wachtwoord.</p>
+</blockquote>
+<hr>
+<h2 id="gebruiker-verwijderen">Gebruiker verwijderen</h2>
+<pre><code class="lang-bash">sudo userdel -r (<span class="hljs-name">gebruikersnaam</span>)    # -r verwijdert ook home-directory
+</code></pre>
+<blockquote>
+<p> Zonder <code>-r</code> blijft de home-directory staan. Handig als je eerst een backup wilt maken van de bestanden van de gebruiker.</p>
+</blockquote>
+<hr>
+<h2 id="sudo-rechten-geven">Sudo-rechten geven</h2>
+<pre><code class="lang-bash"><span class="hljs-meta"># Optie 1: gebruiker toevoegen aan wheel-groep (aanbevolen)</span>
+sudo usermod -aG wheel (gebruikersnaam)
+
+<span class="hljs-meta"># Optie 2: sudoers bestand aanpassen</span>
+sudo visudo                          # Opent nano als editor
+<span class="hljs-meta"># Voeg toe: (gebruikersnaam) ALL=(ALL) ALL</span>
+</code></pre>
+<blockquote>
+<p> Geef sudo-rechten alleen aan mensen die het echt nodig hebben. Via de wheel-groep is het eenvoudiger te beheren dan losse regels in sudoers — je hoeft alleen groepslidmaatschap aan te passen.</p>
+</blockquote>
+<hr>
+<h2 id="ssh-verbinding-vanuit-windows">SSH verbinding vanuit Windows</h2>
+<ol>
+<li>IP-adres opzoeken in Linux: rechtsboven op netwerkicoon → Wired Settings → tandwiel</li>
+<li>PuTTY openen → vul IP-adres in → Open → inloggen met gebruikersnaam + wachtwoord</li>
+</ol>
+<blockquote>
+<p> In de praktijk beheer je servers bijna altijd via SSH — je logt zelden fysiek in op een server. Leer PuTTY of Windows Terminal goed kennen.</p>
+</blockquote>
+|
+<a href="../../notities.html">Terug naar notities.</a> |

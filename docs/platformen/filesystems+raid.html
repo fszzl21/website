@@ -1,0 +1,107 @@
+<h1 id="filesystems-en-raid">Filesystems en RAID</h1>
+<hr>
+<h2 id="schijven-partities-bekijken">Schijven &amp; partities bekijken</h2>
+<pre><code class="lang-bash">lsblk                <span class="hljs-comment"># Simpel display</span>
+lsblk -o +FSTYPE                <span class="hljs-comment"># Aanbevolen</span>
+sudo fdisk <span class="hljs-_">-l</span>                   <span class="hljs-comment"># Gedetailleerd display</span>
+sudo blkid                      <span class="hljs-comment"># Handig om UUID te vinden</span>
+</code></pre>
+<hr>
+<h2 id="partities-aanmaken">Partities aanmaken</h2>
+<pre><code class="lang-bash">sudo cfdisk /dev/(partitie)
+sudo fdisk /dev/(partitie)
+
+<span class="hljs-meta"># In fdisk:</span>
+<span class="hljs-meta"># n → nieuwe partitie</span>
+<span class="hljs-meta"># t → type wijzigen (fd = Linux RAID autodetect)</span>
+<span class="hljs-meta"># w → opslaan en afsluiten</span>
+</code></pre>
+<hr>
+<h2 id="filesystems-aanmaken">Filesystems aanmaken</h2>
+<pre><code class="lang-bash">sudo mkfs.ext2 <span class="hljs-regexp">/dev/</span>(partitie)     <span class="hljs-comment"># ext2 filesystem</span>
+sudo mkfs.ext3 <span class="hljs-regexp">/dev/</span>(partitie)     <span class="hljs-comment"># ext3 filesystem</span>
+sudo mkfs.ext4 <span class="hljs-regexp">/dev/</span>(partitie)     <span class="hljs-comment"># ext4 filesystem</span>
+sudo mkfs.xfs  <span class="hljs-regexp">/dev/</span>(partitie)     <span class="hljs-comment"># xfs filesystem</span>
+</code></pre>
+<hr>
+<h2 id="mounten-unmounten">Mounten &amp; unmounten</h2>
+<pre><code class="lang-bash">sudo mkdir -p <span class="hljs-regexp">/data/</span>(map)            <span class="hljs-comment"># Altijd kijken of folder bestaat waar je wilt mounten.</span>
+sudo mount -v <span class="hljs-regexp">/dev/</span>(partitie) <span class="hljs-regexp">/data/</span>(map)    <span class="hljs-comment"># mounten</span>
+sudo umount <span class="hljs-regexp">/data/</span>(map)
+df -h                                         <span class="hljs-comment"># Schijfruimte bekijken</span>
+mount                                     <span class="hljs-comment"># Alle gemounte schijven tonen</span>
+sudo mount -a                            <span class="hljs-comment"># Alles uit /etc/fstab mounten</span>
+</code></pre>
+<h3 id="permanent-mounten-via-etc-fstab">Permanent mounten via /etc/fstab</h3>
+<pre><code class="lang-bash">sudo nano /etc/fstab
+
+/dev/(<span class="hljs-name">partitie</span>)  /data/(<span class="hljs-name">map</span>)  (<span class="hljs-name">Filesystem</span>: ext2,ext3,xfs)  defaults  <span class="hljs-number">0</span>  <span class="hljs-number">2</span>
+</code></pre>
+<hr>
+<h2 id="filesystem-controleren">Filesystem controleren</h2>
+<pre><code class="lang-bash">sudo umount <span class="hljs-regexp">/data/</span>(map)        <span class="hljs-comment"># Altijd eerst unmounten</span>
+sudo fsck <span class="hljs-regexp">/dev/</span>(partitie)    <span class="hljs-comment"># Filesystem checker</span>
+</code></pre>
+<hr>
+<h2 id="lvm">LVM</h2>
+<pre><code class="lang-bash"><span class="hljs-comment"># Physical volume</span>
+sudo pvcreate <span class="hljs-regexp">/dev/</span>(partitie <span class="hljs-keyword">of</span> raid)    <span class="hljs-comment"># Aanmaken van volume</span>
+sudo pvdisplay                <span class="hljs-comment"># Volumes inzien</span>
+
+<span class="hljs-comment"># Volume group</span>
+sudo vgcreate (vgnaam) <span class="hljs-regexp">/dev/</span>(partitie)
+sudo vgdisplay (vgnaam)
+
+<span class="hljs-comment"># Logical volumes</span>
+sudo lvcreate -L <span class="hljs-number">2</span>G -n (lvnaam) (vgnaam)    <span class="hljs-comment"># 2G houdt opslag in. Kan ook met MB, KB etc.</span>
+sudo lvdisplay
+sudo lvextend -L+<span class="hljs-number">1</span>G <span class="hljs-regexp">/dev/</span>(vgnaam)/(lvnaam)    <span class="hljs-comment"># Vergroten van een volume</span>
+sudo resize2fs <span class="hljs-regexp">/dev/</span>(vgnaam)/(lvnaam)    <span class="hljs-comment"># Filesystem meegroeien</span>
+</code></pre>
+<hr>
+<h2 id="raid-mdadm-">RAID (mdadm)</h2>
+<pre><code class="lang-bash"><span class="hljs-meta"># RAID array aanmaken</span>
+sudo mdadm --create <span class="hljs-meta-keyword">/dev/</span>md0 --level=<span class="hljs-number">1</span> --raid-devices=<span class="hljs-number">2</span> \
+  <span class="hljs-meta-keyword">/dev/</span>(partitie1) <span class="hljs-meta-keyword">/dev/</span>(partitie2)
+
+<span class="hljs-meta"># Status monitoren </span>
+watch cat <span class="hljs-meta-keyword">/proc/</span>mdstat
+sudo mdadm --detail <span class="hljs-meta-keyword">/dev/</span>md0
+sudo mdadm --examine <span class="hljs-meta-keyword">/dev/</span>(partitie1) <span class="hljs-meta-keyword">/dev/</span>(partitie2)
+
+<span class="hljs-meta"># mdadm.conf opslaan (persistentie na reboot)</span>
+sudo mkdir <span class="hljs-meta-keyword">/etc/</span>mdadm
+sudo touch <span class="hljs-meta-keyword">/etc/</span>mdadm/mdadm.conf
+echo <span class="hljs-string">"DEVICE /dev/(partitie1) /dev/(partitie2)"</span> | sudo tee <span class="hljs-meta-keyword">/etc/</span>mdadm/mdadm.conf
+mdadm --detail --scan | sudo tee -a <span class="hljs-meta-keyword">/etc/</span>mdadm/mdadm.conf
+
+<span class="hljs-meta"># Disk laten falen / verwijderen / toevoegen</span>
+sudo mdadm <span class="hljs-meta-keyword">/dev/</span>md0 -f <span class="hljs-meta-keyword">/dev/</span>(partitie)    <span class="hljs-meta"># Simuleer storing</span>
+sudo mdadm <span class="hljs-meta-keyword">/dev/</span>md0 -r <span class="hljs-meta-keyword">/dev/</span>(partitie)    <span class="hljs-meta"># Verwijder schijf uit array</span>
+sudo mdadm <span class="hljs-meta-keyword">/dev/</span>md0 -a <span class="hljs-meta-keyword">/dev/</span>(partitie)    <span class="hljs-meta"># Voeg schijf toe aan array</span>
+</code></pre>
+<hr>
+<h2 id="dump-restore-backup-">Dump &amp; Restore (backup)</h2>
+<pre><code class="lang-bash"><span class="hljs-meta"># Backup maken</span>
+<span class="hljs-title">dump</span> <span class="hljs-number">-0</span>u -f ~/backup<span class="hljs-number">.0</span>  /<span class="hljs-class"><span class="hljs-keyword">data</span>/(<span class="hljs-title">map</span>)    # <span class="hljs-type">Level</span> 0 (<span class="hljs-title">volledig</span>)</span>
+<span class="hljs-title">dump</span> <span class="hljs-number">-1</span>u -f ~/backup<span class="hljs-number">.1</span>  /<span class="hljs-class"><span class="hljs-keyword">data</span>/(<span class="hljs-title">map</span>)    # <span class="hljs-type">Level</span> 1 (<span class="hljs-title">wijzigingen</span>)</span>
+
+<span class="hljs-meta"># Restore</span>
+<span class="hljs-title">mkdir</span> ~/restore &amp;&amp; cd ~/restore
+<span class="hljs-title">restore</span> -f ~/backup<span class="hljs-number">.0</span> -x (bestandsnaam)
+
+<span class="hljs-meta"># Backup verwijderen</span>
+<span class="hljs-title">rm</span> ~/backup<span class="hljs-number">.0</span>
+</code></pre>
+<hr>
+<h2 id="logs-bekijken">Logs bekijken</h2>
+<pre><code class="lang-bash">sudo <span class="hljs-keyword">grep</span> <span class="hljs-string">'md[0-9]'</span> /var/<span class="hljs-built_in">log</span>/<span class="hljs-keyword">messages</span>
+sudo tail -n <span class="hljs-number">50</span> /var/<span class="hljs-built_in">log</span>/<span class="hljs-keyword">messages</span> | <span class="hljs-keyword">grep</span> <span class="hljs-string">'md[0-9]'</span>
+</code></pre>
+<hr>
+<h2 id="packages-installeren">Packages installeren</h2>
+<pre><code class="lang-bash">sudo dnf <span class="hljs-keyword">install</span> lvm2 dump mdadm
+</code></pre>
+|
+<a href="../../notities.html">Terug naar notities.</a> |
+
