@@ -1,0 +1,101 @@
+<h1 id="windows-group-policies">Windows Group Policies</h1>
+<h2 id="tools">Tools</h2>
+<pre><code><span class="hljs-meta"># Local policy editor (alleen lokaal)</span>
+gpedit.msc
+
+<span class="hljs-meta"># Group Policy Management Console (domein)</span>
+gpmc.msc
+
+<span class="hljs-meta"># GPO direct bijwerken op een client</span>
+gpupdate /force
+
+<span class="hljs-meta"># GPO-status van huidige gebruiker/computer bekijken</span>
+gpresult /r
+
+<span class="hljs-meta"># GPO-rapport als HTML exporteren</span>
+gpresult /H C:\Reports\GPReport.html
+
+<span class="hljs-meta"># Remote GPUpdate via PowerShell</span>
+Invoke-GPUpdate -Computer <span class="hljs-string">"PC01"</span> -RandomDelayInMinutes <span class="hljs-number">0</span>
+</code></pre><h2 id="gpo-aanmaken-en-koppelen">GPO aanmaken en koppelen</h2>
+<pre><code><span class="hljs-meta"># Nieuwe GPO aanmaken</span>
+<span class="hljs-keyword">New</span>-GPO -Name <span class="hljs-string">"Mijn GPO"</span> -Comment <span class="hljs-string">"Aangemaakt via PS"</span>
+
+<span class="hljs-meta"># GPO koppelen aan een OU</span>
+<span class="hljs-keyword">New</span>-GPLink -Name <span class="hljs-string">"Mijn GPO"</span> -Target <span class="hljs-string">"OU=Medewerkers,DC=school,DC=test"</span>
+
+<span class="hljs-meta"># GPO koppelen aan domein</span>
+<span class="hljs-keyword">New</span>-GPLink -Name <span class="hljs-string">"Mijn GPO"</span> -Target <span class="hljs-string">"DC=school,DC=test"</span>
+</code></pre><h2 id="volgorde-van-toepassing-l-h-wint-">Volgorde van toepassing (L→H wint)</h2>
+<pre><code><span class="hljs-bullet">1. </span>Local GPO
+<span class="hljs-bullet">2. </span>Site GPO
+<span class="hljs-bullet">3. </span>Domain GPO
+<span class="hljs-bullet">4. </span>OU GPO (van buiten naar binnen)
+<span class="hljs-bullet">5. </span>Child OU GPO (laatste schrijver wint)
+</code></pre><p>Child OU-instellingen overschrijven ouder-instellingen, tenzij <strong>Enforce</strong> is ingesteld op de hogere GPO.</p>
+<h2 id="block-inheritance-en-enforce">Block Inheritance en Enforce</h2>
+<pre><code># Block Inheritance instellen op een OU (via GPMC of PowerShell)
+<span class="hljs-keyword">Set</span>-GPInheritance <span class="hljs-comment">-Target</span> <span class="hljs-comment">"OU=Kiosk-Computers,DC=school,DC=test"</span><span class="hljs-comment"> -IsBlocked Yes</span>
+
+# Enforce <span class="hljs-comment">instellen op een GPO-link (hogere laag wint altijd)</span>
+<span class="hljs-keyword">Set</span>-GPLink <span class="hljs-comment">-Name</span> <span class="hljs-comment">"Default Domain Policy"</span><span class="hljs-comment"> -Target</span> <span class="hljs-comment">"DC=school,DC=test"</span><span class="hljs-comment"> -Enforced Yes</span>
+</code></pre><p><strong>Enforce</strong> verslaat altijd <strong>Block Inheritance</strong>.</p>
+<h2 id="loopback-processing">Loopback Processing</h2>
+<p>Loopback zorgt dat computer-GPO&#39;s ook de gebruikersinstellingen bepalen — ongeacht wie inlogt. Handig voor kiosks.</p>
+<pre><code><span class="hljs-meta"># Inschakelen via GPO:</span>
+<span class="hljs-meta"># Computer Configuration → Policies → Administrative Templates</span>
+<span class="hljs-meta">#   → System → Group Policy → Configure user Group Policy Loopback Processing Mode</span>
+<span class="hljs-meta"># Kies: Enabled → Mode: Replace (volledig vervangen) of Merge (samenvoegen)</span>
+</code></pre><p>Gebruik <strong>Replace</strong> voor kiosks: dan gelden alleen de computer-GPO&#39;s, niet de gebruikersprofiel-GPO&#39;s.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<pre><code><span class="hljs-meta"># Resulterende policy bekijken (HTML rapport)</span>
+Get-GPResultantSetOfPolicy -ReportType HTML -Path C:\Reports\Results.html
+
+<span class="hljs-meta"># Event log controleren</span>
+eventvwr → Applications and Services Logs → Microsoft → Windows → Group Policy
+
+<span class="hljs-meta"># Alle GPO's in het domein bekijken</span>
+Get-GPO -All
+
+<span class="hljs-meta"># GPO-instellingen back-uppen</span>
+Backup-GPO -All -Path C:\GPO-Backups
+
+<span class="hljs-meta"># GPO herstellen vanuit backup</span>
+Restore-GPO -Name <span class="hljs-string">"Mijn GPO"</span> -Path C:\GPO-Backups
+</code></pre><p>Als GPO niet vernieuwd lijkt: controleer of de gebruiker uit- en ingelogd is, en of de refresh interval (standaard 90 min) verstreken is.</p>
+<h2 id="admx-central-store-aanmaken">ADMX Central Store aanmaken</h2>
+<pre><code># Map aanmaken op SYSVOL
+New-Item -ItemType Directory "<span class="hljs-symbol">\\</span>school.test<span class="hljs-symbol">\S</span>YSVOL<span class="hljs-symbol">\s</span>chool.test<span class="hljs-symbol">\P</span>olicies<span class="hljs-symbol">\P</span>olicyDefinitions"
+
+# ADMX-bestanden kopiëren vanuit Windows
+Copy-Item "C:<span class="hljs-symbol">\W</span>indows<span class="hljs-symbol">\P</span>olicyDefinitions<span class="hljs-symbol">\*</span>" "<span class="hljs-symbol">\\</span>school.test<span class="hljs-symbol">\S</span>YSVOL<span class="hljs-symbol">\s</span>chool.test<span class="hljs-symbol">\P</span>olicies<span class="hljs-symbol">\P</span>olicyDefinitions<span class="hljs-symbol">\"</span> -Recurse
+</code></pre><p>Eenmalig per domein. Daarna gebruiken alle beheermachines automatisch de centrale ADMX-bestanden.</p>
+<h2 id="group-policy-preferences-vs-policies">Group Policy Preferences vs Policies</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Policy</th>
+<th>Preference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gebruiker kan aanpassen</td>
+<td>Nee</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>Verwijderd bij GPO-ontkoppeling</td>
+<td>Ja</td>
+<td>Nee (tattooing)</td>
+</tr>
+<tr>
+<td>Applicatie vereist</td>
+<td>Policy-aware</td>
+<td>Niet vereist</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<p>| <a href="https://www.fanwari.com/notities.html">Terug naar notities.</a> |</p>

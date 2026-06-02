@@ -1,0 +1,113 @@
+<h1 id="windows-systeembeveiliging-pki">Windows Systeembeveiliging &amp; PKI</h1>
+<h2 id="windows-firewall-met-advanced-security">Windows Firewall met Advanced Security</h2>
+<pre><code><span class="hljs-comment"># Firewall-regels bekijken</span>
+Get-NetFirewallRule <span class="hljs-title">| Where Enabled -eq True |</span> Select <span class="hljs-keyword">DisplayName, </span><span class="hljs-keyword">Direction, </span>Action
+
+<span class="hljs-comment"># Inbound regel toevoegen (poort 443 toestaan)</span>
+New-NetFirewallRule -<span class="hljs-keyword">DisplayName </span><span class="hljs-string">"HTTPS inbound"</span> -<span class="hljs-keyword">Direction </span>Inbound -Protocol TCP -LocalPort <span class="hljs-number">443</span> -Action Allow
+
+<span class="hljs-comment"># Poort blokkeren</span>
+New-NetFirewallRule -<span class="hljs-keyword">DisplayName </span><span class="hljs-string">"Blokkeer poort 8080"</span> -<span class="hljs-keyword">Direction </span>Inbound -Protocol TCP -LocalPort <span class="hljs-number">8080</span> -Action <span class="hljs-keyword">Block
+</span>
+<span class="hljs-comment"># Regel verwijderen</span>
+Remove-NetFirewallRule -<span class="hljs-keyword">DisplayName </span><span class="hljs-string">"HTTPS inbound"</span>
+</code></pre><p>Profielen: <strong>Domain</strong> (binnen het domein), <strong>Private</strong> (thuis/kantoor), <strong>Public</strong> (onbekend netwerk). Stel afzonderlijke regels in per profiel.</p>
+<h2 id="ipsec-connection-security-rules-via-gpo-">IPsec Connection Security Rules (via GPO)</h2>
+<pre><code><span class="hljs-meta"># Via Group Policy:</span>
+<span class="hljs-meta"># Computer Configuration → Windows Settings → Security Settings</span>
+<span class="hljs-meta">#   → Windows Firewall with Advanced Security → Connection Security Rules</span>
+
+<span class="hljs-meta"># Typen:</span>
+<span class="hljs-meta"># Isolation       — authenticatie vereisen van domeinleden</span>
+<span class="hljs-meta"># Authentication Exemption — uitzonderingen (bijv. printers)</span>
+<span class="hljs-meta"># Server-to-Server — specifieke hosts</span>
+<span class="hljs-meta"># Tunnel          — site-to-site</span>
+</code></pre><p>IPsec vereist dat beide kanten domeinlid zijn (Kerberos) of een certificaat hebben. Werkt slecht samen met NAT.</p>
+<h2 id="applocker-instellen">AppLocker instellen</h2>
+<pre><code><span class="hljs-comment"># Via GPO:</span>
+<span class="hljs-comment"># Computer Configuration → Policies → Windows Settings → Security Settings → AppLocker</span>
+
+<span class="hljs-comment"># Via PowerShell: standaardregels aanmaken</span>
+Get-AppLockerPolicy -Effective | Set-AppLockerPolicy -Merge
+New-AppLockerPolicy -RuleType Publisher, Path, Hash -<span class="hljs-keyword">User</span> <span class="hljs-title">Everyone</span> -Optimize
+</code></pre><p>Stel altijd standaard &quot;allow&quot; regels in voor Windows-mappen, anders kunnen gebruikers niets meer uitvoeren.</p>
+<h2 id="certificate-authority-installeren-ad-cs-">Certificate Authority installeren (AD CS)</h2>
+<pre><code># AD CS rol installeren
+Install-WindowsFeature ADCS-Cert-Authority -IncludeManagementTools
+
+# Enterprise Root CA configureren
+Install-AdcsCertificationAuthority `
+  -<span class="ruby">CAType EnterpriseRootCa <span class="hljs-string">`
+</span></span>  -<span class="ruby"><span class="hljs-string">CACommonName "School-Root-CA" `</span>
+</span>  -<span class="ruby">KeyLength <span class="hljs-number">2048</span> <span class="hljs-string">`
+</span></span>  -<span class="ruby"><span class="hljs-string">HashAlgorithmName SHA256 `</span>
+</span>  -<span class="ruby">ValidityPeriod Years <span class="hljs-string">`
+</span></span>  -<span class="ruby"><span class="hljs-string">ValidityPeriodUnits 10</span></span>
+</code></pre><p>Enterprise CA integreert met AD en ondersteunt autoenrollment. Standalone CA werkt zonder AD maar vereist handmatige uitgifte.</p>
+<h2 id="certificaattemplate-aanmaken">Certificaattemplate aanmaken</h2>
+<pre><code># Via GUI (certtmpl.msc):
+# <span class="hljs-number">1.</span> Bestaande template dupliceren (bijv. <span class="hljs-string">"Computer"</span> <span class="hljs-keyword">of</span> <span class="hljs-string">"User"</span>)
+# <span class="hljs-number">2.</span> Naam aanpassen, geldigheidsperiode instellen
+# <span class="hljs-number">3.</span> Security tab: groep toevoegen → <span class="hljs-string">"Enroll"</span> en <span class="hljs-string">"Autoenroll"</span> rechten geven
+# <span class="hljs-number">4.</span> Template publiceren <span class="hljs-keyword">in</span> CA:
+#    certsrv.msc → Certificate Templates → New → Certificate Template to Issue
+</code></pre><h2 id="autoenrollment-instellen-via-gpo">Autoenrollment instellen via GPO</h2>
+<pre><code><span class="hljs-meta"># Via GPO:</span>
+<span class="hljs-meta"># Computer Configuration → Policies → Windows Settings → Security Settings</span>
+<span class="hljs-meta">#   → Public Key Policies → Certificate Services Client – Auto-Enrollment</span>
+
+<span class="hljs-meta"># Instellen op:</span>
+<span class="hljs-meta"># Enabled</span>
+<span class="hljs-meta"># Renew expired certificates: aan</span>
+<span class="hljs-meta"># Update templates: aan</span>
+</code></pre><p>Autoenrollment werkt alleen met Enterprise CA en als de gebruiker/computer &quot;Autoenroll&quot;-rechten heeft op het template.</p>
+<h2 id="certificaat-handmatig-aanvragen">Certificaat handmatig aanvragen</h2>
+<pre><code># Via certmgr.msc (gebruiker) of certlm.msc (computer):
+# Personal → Certificates → rechtermuisklik → All Tasks → <span class="hljs-built_in">Request</span> <span class="hljs-keyword">New</span> Certificate
+
+# Via command line:
+certreq -<span class="hljs-keyword">new</span> <span class="hljs-built_in">request</span>.inf <span class="hljs-built_in">request</span>.csr
+certreq -submit -attrib <span class="hljs-string">"CertificateTemplate:WebServer"</span> <span class="hljs-built_in">request</span>.csr <span class="hljs-built_in">response</span>.cer
+certreq -accept <span class="hljs-built_in">response</span>.cer
+</code></pre><h2 id="certificaat-intrekken-revocation-">Certificaat intrekken (revocation)</h2>
+<pre><code><span class="hljs-meta"># Via certsrv.msc:</span>
+<span class="hljs-meta"># Issued Certificates → certificaat selecteren → rechtermuisklik → Revoke</span>
+
+<span class="hljs-meta"># CRL handmatig publiceren</span>
+certutil -crl
+
+<span class="hljs-meta"># CRL bekijken</span>
+certutil -URL https:<span class="hljs-comment">//pki.school.test/crl/school-root-ca.crl</span>
+</code></pre><h2 id="pki-componenten-overzicht">PKI componenten overzicht</h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Functie</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Root CA</td>
+<td>Geeft zichzelf een certificaat, basis van vertrouwen</td>
+</tr>
+<tr>
+<td>Subordinate CA</td>
+<td>Geeft certificaten uit aan gebruikers/computers</td>
+</tr>
+<tr>
+<td>CRL</td>
+<td>Lijst van ingetrokken certificaten</td>
+</tr>
+<tr>
+<td>CDP</td>
+<td>Locatie waar CRL gepubliceerd staat</td>
+</tr>
+<tr>
+<td>AIA</td>
+<td>Locatie van het CA-certificaat zelf</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<p>| <a href="https://www.fanwari.com/notities.html">Terug naar notities.</a> |</p>

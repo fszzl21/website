@@ -158,5 +158,94 @@ Enable-ADAccount  -<span class="hljs-keyword">Identity</span> <span class="hljs-
 # Gebruiker aan groep toevoegen
 <span class="hljs-keyword">Add</span>-ADGroupMember -<span class="hljs-keyword">Identity</span> <span class="hljs-string">"IT-Beheer"</span> -Members <span class="hljs-string">"jan.jansen"</span>
 </code></pre>
+
+<hr>
+<h2 id="ad-sites-aanmaken-en-koppelen">AD Sites aanmaken en koppelen</h2>
+<pre><code># Nieuwe site aanmaken
+<span class="hljs-symbol">New</span>-<span class="hljs-keyword">ADReplicationSite </span>-Name <span class="hljs-string">"Amsterdam"</span>
+
+# <span class="hljs-keyword">Subnet </span>koppelen aan site
+<span class="hljs-symbol">New</span>-<span class="hljs-keyword">ADReplicationSubnet </span>-Name <span class="hljs-string">"192.168.10.0/24"</span> -Site <span class="hljs-string">"Amsterdam"</span>
+
+# Site link aanmaken tussen twee sites
+<span class="hljs-symbol">New</span>-<span class="hljs-keyword">ADReplicationSiteLink </span>-Name <span class="hljs-string">"Amsterdam-Rotterdam"</span> -SitesIncluded Amsterdam,Rotterdam -Cost <span class="hljs-number">100</span> -ReplicationFrequencyInMinutes <span class="hljs-number">180</span>
+
+# <span class="hljs-keyword">Bestaande </span>sites en <span class="hljs-keyword">subnets </span><span class="hljs-keyword">bekijken
+</span><span class="hljs-symbol">Get</span>-<span class="hljs-keyword">ADReplicationSite </span>-Filter *
+<span class="hljs-symbol">Get</span>-<span class="hljs-keyword">ADReplicationSubnet </span>-Filter *
+</code></pre><p>Één site link per WAN-verbinding. Lagere cost = hogere voorkeur, vergelijkbaar met OSPF.</p>
+<h2 id="replicatie-beheren">Replicatie beheren</h2>
+<pre><code><span class="hljs-meta"># Replicatie status per DC</span>
+repadmin /showrepl DC1
+
+<span class="hljs-meta"># USN (Update Sequence Number) bekijken</span>
+repadmin /showutdvec DC1 DC=school,DC=test
+
+<span class="hljs-meta"># KCC handmatig triggeren</span>
+repadmin /kcc
+
+<span class="hljs-meta"># Replicatie direct uitvoeren ("Replicate Now")</span>
+repadmin /syncall /AdeP
+</code></pre><p>KCC genereert elke 15 minuten automatisch de meest efficiënte replicatietopologie. Handmatig connection objects aanmaken wordt afgeraden.</p>
+<h2 id="dns-in-active-directory">DNS in Active Directory</h2>
+<pre><code><span class="hljs-comment"># AD-geïntegreerde DNS zone aanmaken</span>
+<span class="hljs-keyword">Add</span><span class="bash">-DnsServerPrimaryZone -Name <span class="hljs-string">"school.test"</span> -ReplicationScope <span class="hljs-string">"Forest"</span>
+</span>
+<span class="hljs-comment"># DNS-record handmatig toevoegen</span>
+<span class="hljs-keyword">Add</span><span class="bash">-DnsServerResourceRecordA -ZoneName <span class="hljs-string">"school.test"</span> -Name <span class="hljs-string">"server1"</span> -IPv4Address <span class="hljs-string">"192.168.1.10"</span>
+</span>
+<span class="hljs-comment"># DNS-zone bekijken</span>
+Get-DnsServerZone
+</code></pre><p>Geen DNS = geen werkende AD. Zorg altijd voor een DNS-server binnen elke site.</p>
+<h2 id="rras-routing-and-remote-access">RRAS — Routing and Remote Access</h2>
+<pre><code># <span class="hljs-selector-tag">RRAS</span> <span class="hljs-selector-tag">installeren</span>
+<span class="hljs-selector-tag">Install-WindowsFeature</span> <span class="hljs-selector-tag">Routing</span> <span class="hljs-selector-tag">-IncludeManagementTools</span>
+
+# <span class="hljs-selector-tag">RRAS</span> <span class="hljs-selector-tag">configureren</span> <span class="hljs-selector-tag">via</span> <span class="hljs-selector-tag">GUI</span>
+<span class="hljs-selector-tag">mmc</span> → <span class="hljs-selector-tag">Routing</span> <span class="hljs-selector-tag">and</span> <span class="hljs-selector-tag">Remote</span> <span class="hljs-selector-tag">Access</span>
+
+# <span class="hljs-selector-tag">Statische</span> <span class="hljs-selector-tag">route</span> <span class="hljs-selector-tag">toevoegen</span>
+<span class="hljs-selector-tag">route</span> <span class="hljs-selector-tag">add</span> 10<span class="hljs-selector-class">.0</span><span class="hljs-selector-class">.0</span><span class="hljs-selector-class">.0</span> <span class="hljs-selector-tag">mask</span> 255<span class="hljs-selector-class">.255</span><span class="hljs-selector-class">.0</span><span class="hljs-selector-class">.0</span> 192<span class="hljs-selector-class">.168</span><span class="hljs-selector-class">.1</span><span class="hljs-selector-class">.1</span>
+</code></pre><h2 id="dhcp-relay-agent-instellen-rras-">DHCP Relay Agent instellen (RRAS)</h2>
+<pre><code><span class="hljs-meta"># Via RRAS console:</span>
+<span class="hljs-meta"># IPv4 → Nieuw routeringsprotocol → DHCP Relay Agent</span>
+<span class="hljs-meta"># Interface toevoegen → DHCP server-adres invullen</span>
+</code></pre><p>Vergelijkbaar met <code>ip helper-address</code> bij Cisco.</p>
+<h2 id="nat-configureren-rras-">NAT configureren (RRAS)</h2>
+<pre><code># Via RRAS console:
+# IPv4 → NAT → Nieuwe <span class="hljs-class"><span class="hljs-keyword">interface</span></span>
+# Externe <span class="hljs-class"><span class="hljs-keyword">interface</span>: <span class="hljs-type">"Public interface connected to the Internet" + NAT inschakelen</span></span>
+# Interne <span class="hljs-class"><span class="hljs-keyword">interface</span>: <span class="hljs-type">"Private interface connected to private network"</span></span>
+</code></pre><h2 id="domain-design-modellen">Domain Design modellen</h2>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Gebruik</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Single-domain</td>
+<td>Klein bedrijf, eenvoudig beheer</td>
+</tr>
+<tr>
+<td>Multiple-domain</td>
+<td>Gedecentraliseerd beheer, geografische spreiding</td>
+</tr>
+<tr>
+<td>Multiple trees / single forest</td>
+<td>Aparte DNS-namespaces, zelfde forest</td>
+</tr>
+<tr>
+<td>Federated forests</td>
+<td>Twee losse AD-omgevingen met trust</td>
+</tr>
+</tbody>
+</table>
+<pre><code># <span class="hljs-keyword">Subdomain </span>(child domain) toevoegen
+# Via Server Manager → <span class="hljs-keyword">Add </span>Roles → AD DS → nieuw <span class="hljs-keyword">subdomain </span>in <span class="hljs-keyword">bestaand </span>forest
+</code></pre><p>Voeg een extra domein toe als je meer dan 100 gebruikers op een locatie hebt met een langzame WAN-verbinding.</p>
+<hr>
 |
 <a href="../../notities.html">Terug naar notities.</a> |

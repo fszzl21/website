@@ -1,0 +1,133 @@
+<h1 id="virtual-private-networks">Virtual Private Networks</h1>
+<h2 id="vpn-protocollen-vergelijking">VPN-protocollen vergelijking</h2>
+<table>
+<thead>
+<tr>
+<th>Protocol</th>
+<th>Poort/Protocol</th>
+<th>Veiligheid</th>
+<th>Opmerking</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PPTP</td>
+<td>TCP 1723 + GRE 47</td>
+<td>Onveilig</td>
+<td>Niet gebruiken</td>
+</tr>
+<tr>
+<td>L2TP/IPsec</td>
+<td>UDP 500, 4500 + ESP 50</td>
+<td>Goed</td>
+<td>Problemen met NAT</td>
+</tr>
+<tr>
+<td>SSTP</td>
+<td>TCP 443 (SSL)</td>
+<td>Goed</td>
+<td>Werkt door NAT/firewall</td>
+</tr>
+<tr>
+<td>OpenVPN</td>
+<td>UDP 1194 (of TCP)</td>
+<td>Goed</td>
+<td>Open source, flexibel</td>
+</tr>
+<tr>
+<td>WireGuard</td>
+<td>UDP (variabel)</td>
+<td>Goed</td>
+<td>Snel, in Linux/Windows kernel</td>
+</tr>
+</tbody>
+</table>
+<h2 id="openvpn-linux-server-instellen">OpenVPN — Linux server instellen</h2>
+<pre><code><span class="hljs-comment"># IP forwarding inschakelen</span>
+echo <span class="hljs-number">1</span> &gt; /<span class="hljs-keyword">proc</span>/sys/net/ipv4/ip_forward
+
+#<span class="hljs-title"> Persistent</span> maken<span class="hljs-title">
+nano</span> /etc/sysctl.conf
+#<span class="hljs-title"> Zet:</span> net.ipv4.ip_forward = 1
+
+#<span class="hljs-title"> NAT</span> instellen<span class="hljs-title"> met</span> iptables<span class="hljs-title">
+iptables</span> -I<span class="hljs-title"> FORWARD</span> -i<span class="hljs-title"> tun+</span> -j<span class="hljs-title"> ACCEPT</span>
+iptables -I<span class="hljs-title"> FORWARD</span> -o<span class="hljs-title"> tun+</span> -j<span class="hljs-title"> ACCEPT</span>
+iptables -t<span class="hljs-title"> nat</span> -I<span class="hljs-title"> POSTROUTING</span> -o<span class="hljs-title"> ens160</span> -j<span class="hljs-title"> MASQUERADE</span>
+
+#<span class="hljs-title"> Met</span> firewalld (Fedora/RHEL)<span class="hljs-title">
+firewall-cmd</span> --direct --add-rule<span class="hljs-title"> ipv4</span> filter<span class="hljs-title"> FORWARD</span> 0 -i<span class="hljs-title"> tun+</span> -j<span class="hljs-title"> ACCEPT</span>
+firewall-cmd --direct --add-rule<span class="hljs-title"> ipv4</span> filter<span class="hljs-title"> FORWARD</span> 0 -o<span class="hljs-title"> tun+</span> -j<span class="hljs-title"> ACCEPT</span>
+firewall-cmd --direct --add-rule<span class="hljs-title"> ipv4</span> nat<span class="hljs-title"> POSTROUTING</span> 0 -o<span class="hljs-title"> ens160</span> -j<span class="hljs-title"> MASQUERADE</span>
+</code></pre><h2 id="openvpn-starten">OpenVPN starten</h2>
+<pre><code><span class="hljs-meta"># Server starten</span>
+sudo openvpn --config /etc/openvpn/<span class="hljs-keyword">server</span>/<span class="hljs-keyword">server</span>.ovpn
+
+<span class="hljs-meta"># Client verbinden</span>
+sudo openvpn --config <span class="hljs-keyword">client</span>.ovpn
+</code></pre><h2 id="openvpn-port-forwarding-in-vyos">OpenVPN port forwarding in VyOS</h2>
+<pre><code><span class="hljs-keyword">set</span> nat <span class="hljs-comment">destination rule 10 description</span> <span class="hljs-comment">'Port Forward: OpenVPN'</span>
+<span class="hljs-keyword">set</span> <span class="hljs-comment">nat destination rule 10 destination port</span> <span class="hljs-comment">'1194'</span>
+<span class="hljs-keyword">set</span> <span class="hljs-comment">nat destination rule 10 inbound-interface</span> <span class="hljs-comment">'eth3'</span>
+<span class="hljs-keyword">set</span> <span class="hljs-comment">nat destination rule 10 protocol</span> <span class="hljs-comment">'udp'</span>
+<span class="hljs-keyword">set</span> <span class="hljs-comment">nat destination rule 10 translation address</span> <span class="hljs-comment">'10.13.14.1'</span>
+</code></pre><h2 id="wireguard-linux-instellen">WireGuard — Linux instellen</h2>
+<pre><code><span class="hljs-meta"># Installeren</span>
+sudo apt install wireguard -y
+
+<span class="hljs-meta"># Sleutelpaar genereren</span>
+wg genkey | tee privatekey | wg pubkey &gt; publickey
+
+<span class="hljs-meta"># Config aanmaken</span>
+nano /etc/wireguard/wg0.conf
+</code></pre><p>Voorbeeldconfig server (<code>/etc/wireguard/wg0.conf</code>):</p>
+<pre><code><span class="hljs-section">[Interface]</span>
+<span class="hljs-attr">PrivateKey</span> = &lt;server-privatekey&gt;
+<span class="hljs-attr">Address</span> = <span class="hljs-number">10.0</span>.<span class="hljs-number">0.1</span>/<span class="hljs-number">24</span>
+<span class="hljs-attr">ListenPort</span> = <span class="hljs-number">51820</span>
+<span class="hljs-section">
+[Peer]</span>
+<span class="hljs-attr">PublicKey</span> = &lt;client-publickey&gt;
+<span class="hljs-attr">AllowedIPs</span> = <span class="hljs-number">10.0</span>.<span class="hljs-number">0.2</span>/<span class="hljs-number">32</span>
+</code></pre><pre><code><span class="hljs-meta"># WireGuard interface starten</span>
+sudo wg-quick up wg0
+
+<span class="hljs-meta"># Status bekijken</span>
+sudo wg show
+</code></pre><p>WireGuard slaat publieke IP&#39;s op totdat de server reboot. Als anonimiteit essentieel is, gebruik dan OpenVPN.</p>
+<h2 id="windows-rras-vpn-server-instellen">Windows RRAS — VPN server instellen</h2>
+<pre><code><span class="hljs-meta"># RRAS-rol installeren</span>
+Install-WindowsFeature RemoteAccess, Routing, DirectAccess-VPN -IncludeManagementTools
+
+<span class="hljs-meta"># RRAS configureren via GUI</span>
+rrasmgmt.msc
+<span class="hljs-meta"># Rechtermuisklik op server → Configure and Enable Routing and Remote Access</span>
+<span class="hljs-meta"># Kies: Remote Access (dial-up or VPN)</span>
+</code></pre><h2 id="nps-network-policy-server-instellen">NPS (Network Policy Server) instellen</h2>
+<pre><code><span class="hljs-meta"># NPS installeren</span>
+Install-WindowsFeature NPAS -IncludeManagementTools
+
+<span class="hljs-meta"># NPS console openen</span>
+nps.msc
+</code></pre><p>NPS blokkeert standaard alle remote access. Maak een Network Policy aan:</p>
+<ol>
+<li><code>nps.msc</code> → Network Policies → New</li>
+<li>Conditie: Windows Groups → domeingroep toevoegen</li>
+<li>Access granted</li>
+<li>Authenticatiemethode: MS-CHAPv2 of EAP</li>
+</ol>
+<h2 id="l2tp-ipsec-pre-shared-key-instellen">L2TP/IPsec — Pre-shared key instellen</h2>
+<pre><code><span class="hljs-meta"># Via RRAS:</span>
+<span class="hljs-meta"># Server → Properties → Security → Allow custom IPsec policy for L2TP</span>
+<span class="hljs-meta"># Pre-shared key invullen</span>
+
+<span class="hljs-meta"># Client instellen (Windows):</span>
+<span class="hljs-meta"># Netwerk- en Internet-instellingen → VPN → Add VPN</span>
+<span class="hljs-meta"># Type: L2TP/IPsec with pre-shared key</span>
+</code></pre><p>L2TP/IPsec werkt niet als de RRAS-server achter NAT zit — zet de server direct in een DMZ.</p>
+<h2 id="authenticatieprotocollen-volgorde-voorkeur-">Authenticatieprotocollen (volgorde voorkeur)</h2>
+<pre><code><span class="hljs-bullet">1. </span>EAP-TLS      (certificaten, meest veilig)
+<span class="hljs-bullet">2. </span>PEAP         (alleen servercertificaat nodig)
+<span class="hljs-bullet">3. </span>MS-CHAPv2    (gebruikersnaam + wachtwoord, minst veilig van de drie)
+</code></pre><hr>
+<p>| <a href="https://www.fanwari.com/notities.html">Terug naar notities.</a> |</p>
